@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { SilenceUploader } from "@/components/SilenceUploader";
 
 const bars = [32, 58, 38, 82, 48, 96, 52, 76, 34, 90, 44, 70, 28, 80, 40, 100, 54, 72];
@@ -43,8 +44,14 @@ export default function HomePage() {
       <SilenceUploader />
 
       <footer className="footer">
-        Fair use limits apply. Files are kept for 1 day, then deleted. Recent
-        files on this device stay available until then.
+        <nav className="footer__links" aria-label="Legal">
+          <Link href="/terms">Terms</Link>
+          <Link href="/privacy">Privacy</Link>
+        </nav>
+        <p>
+          Fair use limits apply. Files are kept for 1 day, then deleted. Recent
+          files on this device stay available until then.
+        </p>
       </footer>
     </main>
   );

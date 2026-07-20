@@ -50,6 +50,7 @@ flowchart LR
 - **Limits:** IP-based — default **10 jobs/day**, **2 concurrent**; max upload **200 MB** (`MAX_UPLOAD_BYTES`)
 - **PWA:** Add to Home Screen (`/manifest.webmanifest`, `/icon-192`, `/icon-512`, `/sw.js`)
 - **Share previews:** Open Graph / Twitter images (`opengraph-image`, `twitter-image`)
+- **Legal:** [`/terms`](https://silence-remover.puhulab.com/terms) and [`/privacy`](https://silence-remover.puhulab.com/privacy)
 
 Supported media: audio (`.mp3`, `.wav`, `.m4a`, …) and video (`.mp4`, `.mov`, `.mkv`, `.webm`, `.avi`, `.m4v`).
 
