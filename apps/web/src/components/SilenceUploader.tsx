@@ -158,6 +158,7 @@ export function SilenceUploader() {
   const [history, setHistory] = useState<StoredJob[]>([]);
   const [historyReady, setHistoryReady] = useState(false);
   const [compare, setCompare] = useState<CompareState | null>(null);
+  const [inputKey, setInputKey] = useState(0);
 
   const statusLabel = useMemo(() => friendlyStatus(status), [status]);
 
@@ -475,12 +476,13 @@ export function SilenceUploader() {
     other?.pause();
   }
 
+  const busy = ["creating", "uploading", "queued", "processing"].includes(status);
   const recent = history.filter((j) => j.jobId !== jobId || status === "idle");
 
   return (
     <section className="uploader">
       <div
-        className={`dropzone ${dragOver ? "dropzone--active" : ""}`}
+        className={`dropzone ${dragOver ? "dropzone--active" : ""} ${busy ? "dropzone--busy" : ""}`}
         onDragOver={(e) => {
           e.preventDefault();
           setDragOver(true);
@@ -489,27 +491,43 @@ export function SilenceUploader() {
         onDrop={(e) => {
           e.preventDefault();
           setDragOver(false);
+          if (busy) return;
           onFiles(e.dataTransfer.files);
         }}
-        onClick={() => inputRef.current?.click()}
+        onClick={() => {
+          if (busy) return;
+          inputRef.current?.click();
+        }}
         role="button"
-        tabIndex={0}
+        tabIndex={busy ? -1 : 0}
+        aria-disabled={busy}
         onKeyDown={(e) => {
+          if (busy) return;
           if (e.key === "Enter" || e.key === " ") inputRef.current?.click();
         }}
       >
         <p className="dropzone__kicker">Drop audio or video</p>
         <p className="dropzone__title">Cut the dead air</p>
         <p className="dropzone__hint">
-          We keep the talking and trim the quiet parts.
+          {busy
+            ? "Hang tight — finish this file before starting another."
+            : "We keep the talking and trim the quiet parts."}
         </p>
-        <span className="dropzone__cta">Choose file</span>
+        <span className="dropzone__cta">
+          {busy ? "Working…" : ready || status === "failed" ? "Choose another file" : "Choose file"}
+        </span>
         <input
+          key={inputKey}
           ref={inputRef}
           type="file"
           accept={ACCEPT}
           hidden
-          onChange={(e) => onFiles(e.target.files)}
+          disabled={busy}
+          onChange={(e) => {
+            onFiles(e.target.files);
+            // Remount input so the same file can be chosen again (onChange must fire).
+            setInputKey((k) => k + 1);
+          }}
         />
       </div>
 

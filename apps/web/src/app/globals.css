@@ -186,6 +186,17 @@ a {
   background: color-mix(in srgb, var(--panel) 70%, #1d2c27);
 }
 
+.dropzone--busy {
+  cursor: wait;
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.dropzone--busy:hover {
+  transform: none;
+  border-color: var(--line);
+}
+
 .dropzone__kicker {
   margin: 0 0 0.5rem;
   color: var(--accent-2);
