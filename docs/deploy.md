@@ -56,6 +56,7 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 | `RATE_LIMIT_MAX_CONCURRENT` | No | Default `2` |
 | `MAX_UPLOAD_BYTES` | No | Default `209715200` |
 | `API_INTERNAL_URL` | Web | Default `http://api:8080` |
+| `NEXT_PUBLIC_SITE_URL` | Web | Absolute site origin for Open Graph / WhatsApp previews |
 | `CORS_ORIGINS` | API | Default `*` |
 | `COMPOSE_PROFILES` | No | Set to `minio` for local MinIO; leave empty for R2 |
 | `OBJECT_RETENTION_HOURS` | No | Default `24` — worker deletes media after this age |

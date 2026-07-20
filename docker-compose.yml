@@ -120,6 +120,7 @@ services:
       dockerfile: Dockerfile
     environment:
       API_INTERNAL_URL: http://api:8080
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://silence-remover.puhulab.com}
     depends_on:
       - api
     # No host port bind — Dokploy proxies to container port 3000.

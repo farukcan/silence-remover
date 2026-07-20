@@ -13,11 +13,34 @@ const body = Figtree({
   variable: "--font-body",
 });
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
+  "https://silence-remover.puhulab.com";
+
+const title = "Silence Remover by Puhulab";
+const description =
+  "Remove quiet gaps from voiceovers and short videos — free, no account.";
+
 export const metadata: Metadata = {
-  title: "Silence Remover by Puhulab",
-  description: "Remove quiet gaps from voiceovers and short videos — free, no account.",
-  // Favicon comes from apps/web/src/app/icon.svg (Next.js file convention).
-  // Header mark uses /brand/icon.svg from public/.
+  metadataBase: new URL(siteUrl),
+  title,
+  description,
+  applicationName: "Silence Remover",
+  // Favicon: apps/web/src/app/icon.svg
+  // Share preview: apps/web/src/app/opengraph-image.tsx (+ twitter-image)
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: siteUrl,
+    siteName: title,
+    title,
+    description,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+  },
 };
 
 export default function RootLayout({
