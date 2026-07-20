@@ -58,6 +58,8 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 | `API_INTERNAL_URL` | Web | Default `http://api:8080` |
 | `CORS_ORIGINS` | API | Default `*` |
 | `COMPOSE_PROFILES` | No | Set to `minio` for local MinIO; leave empty for R2 |
+| `OBJECT_RETENTION_HOURS` | No | Default `24` — worker deletes media after this age |
+| `CLEANUP_INTERVAL_SEC` | No | Default `900` — cleanup poll interval |
 
 Full template: [`.env.example`](../.env.example).
 
@@ -95,7 +97,38 @@ S3_FORCE_PATH_STYLE=true
 S3_BUCKET=silence-remover
 ```
 
-**CORS:** allow PUT/GET from your web origin on the R2/MinIO bucket so browser uploads succeed.
+**CORS (required for browser uploads to R2):** Cloudflare Dashboard → R2 → bucket `silence-remover` → **Settings** → **CORS policy**. Example:
+
+```json
+[
+  {
+    "AllowedOrigins": [
+      "https://silence-remover.puhulab.com"
+    ],
+    "AllowedMethods": ["PUT", "HEAD"],
+    "AllowedHeaders": ["Content-Type"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+Add `http://localhost:3000` to `AllowedOrigins` if you also upload from local. Origin must match exactly (scheme + host, no trailing slash).
+
+Downloads go through the web app (`/api/jobs/{id}/download`), so R2 CORS does not need `GET` for the browser. Without the PUT policy, upload preflight fails with *No 'Access-Control-Allow-Origin' header*.
+
+### Object retention (1 day)
+
+The **worker** deletes input/output objects older than `OBJECT_RETENTION_HOURS` (default **24**). This is the app’s retention guarantee shown on the site footer.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `OBJECT_RETENTION_HOURS` | `24` | Delete stored media after this age |
+| `CLEANUP_INTERVAL_SEC` | `900` | How often the worker runs cleanup |
+| `UPLOAD_URL_TTL_SEC` | `3600` | Presigned **upload** URL expiry (not object retention) |
+| `DOWNLOAD_URL_TTL_SEC` | `3600` | Presigned **download** URL expiry (not object retention) |
+
+Optional belt-and-suspenders: in Cloudflare R2 → bucket → **Settings** → **Object lifecycle rules**, add a rule to delete objects after 1 day for prefixes `uploads/` and `outputs/`.
 
 ## Resource guidance
 

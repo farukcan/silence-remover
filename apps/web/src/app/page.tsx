@@ -6,15 +6,27 @@ export default function HomePage() {
   return (
     <main className="shell">
       <header className="brand">
-        <h1 className="brand__name">CutAir</h1>
-        <p className="brand__tag">Free silence remover</p>
+        <div className="brand__lockup">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className="brand__mark"
+            src="/brand/icon.svg"
+            alt="Silence Remover"
+            width={56}
+            height={56}
+          />
+          <div className="brand__text">
+            <h1 className="brand__name">Silence Remover</h1>
+            <p className="brand__tag">by Puhulab</p>
+          </div>
+        </div>
       </header>
 
       <section className="hero">
         <h2>Tighten the take. Keep the voice.</h2>
         <p>
-          Upload a voiceover or clip. We detect speech with Silero VAD and stitch
-          a tighter cut — no account, no paywall.
+          Upload a voiceover or clip. We remove the quiet gaps and give you a
+          tighter cut — no account, no paywall.
         </p>
         <div className="waveform" aria-hidden="true">
           {bars.map((h, i) => (
@@ -26,7 +38,8 @@ export default function HomePage() {
       <SilenceUploader />
 
       <footer className="footer">
-        Rate limited per IP. Files are processed on our worker and stored temporarily.
+        Fair use limits apply. Files are kept for 1 day, then deleted. Recent
+        files on this device stay available until then.
       </footer>
     </main>
   );

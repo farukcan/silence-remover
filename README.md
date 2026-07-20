@@ -22,7 +22,7 @@ flowchart LR
 | [`apps/cli/`](apps/cli/) | Local CLIs (`silence_remover.py`, `transcribe.py`) |
 | [`apps/api/`](apps/api/) | Go REST API (jobs, rate limit, presign, queue) — **not public in MVP** |
 | [`apps/worker/`](apps/worker/) | Python worker (Redis queue → silence_core → storage) |
-| [`apps/web/`](apps/web/) | Free CutAir UI (no auth / no billing) |
+| [`apps/web/`](apps/web/) | Free Silence Remover by Puhulab UI (no auth / no billing) |
 | [`docker-compose.yml`](docker-compose.yml) | Dokploy-ready stack |
 | [`docs/`](docs/) | Architecture, API, deploy guides |
 
@@ -144,10 +144,11 @@ silence-remover/
 │   ├── api/          # Go
 │   ├── cli/          # Local Python CLIs
 │   ├── worker/       # Python worker
-│   └── web/          # Next.js (CutAir)
+│   └── web/          # Next.js (Silence Remover by Puhulab)
 ├── packages/
 │   └── silence_core/ # Shared processing library
 ├── docs/             # architecture, api, deploy
+├── design/           # generative brand mark (node design/generate-logo.mjs)
 ├── docker-compose.yml
 ├── docker-compose.local.yml  # local host ports only
 ├── .env.example

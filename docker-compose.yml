@@ -103,6 +103,8 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
       S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
+      OBJECT_RETENTION_HOURS: ${OBJECT_RETENTION_HOURS:-24}
+      CLEANUP_INTERVAL_SEC: ${CLEANUP_INTERVAL_SEC:-900}
     depends_on:
       postgres:
         condition: service_healthy

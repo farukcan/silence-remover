@@ -90,7 +90,7 @@ func (a *API) CreateJob(w http.ResponseWriter, r *http.Request) {
 	inputKey := "uploads/" + jobID.String() + "/input" + ext
 	outputKey := "outputs/" + jobID.String() + "/output" + ext
 
-	uploadURL, err := a.Storage.PresignPut(r.Context(), inputKey, req.ContentType)
+	uploadURL, err := a.Storage.PresignPut(r.Context(), inputKey, "application/octet-stream")
 	if err != nil {
 		a.Limiter.RefundCreate(r.Context(), ip)
 		writeError(w, http.StatusInternalServerError, "failed to create upload URL")
@@ -183,7 +183,11 @@ func (a *API) GetJob(w http.ResponseWriter, r *http.Request) {
 		resp.Error = &job.Error.String
 	}
 	if job.Status == db.StatusCompleted && job.OutputKey != "" {
-		url, err := a.Storage.PresignGet(r.Context(), job.OutputKey)
+		name := job.OriginalFilename
+		if name == "" {
+			name = "output"
+		}
+		url, err := a.Storage.PresignGet(r.Context(), job.OutputKey, name)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to create download URL")
 			return

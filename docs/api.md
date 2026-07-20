@@ -44,6 +44,9 @@ Create a job and a presigned upload URL.
 `filename` extension must be one of:  
 `.mp3 .wav .m4a .aac .flac .ogg .wma .mp4 .mov .mkv .webm .avi .m4v`
 
+`content_type` is stored as job metadata only. The presigned PUT is always signed for  
+`Content-Type: application/octet-stream` (browser must PUT with that header) so objects are not treated as inline-playable media.
+
 **Response `201`**
 
 ```json
@@ -105,7 +108,13 @@ After the browser finishes the presigned PUT. Verifies the object exists (Head),
 }
 ```
 
-`download_url` is present only when `status` is `completed`.
+`download_url` is present only when `status` is `completed` and the output object still exists (objects are purged after `OBJECT_RETENTION_HOURS`, default 24h).
+
+Presigned GET responses use `Content-Disposition: attachment` and `Content-Type: application/octet-stream` so browsers download instead of playing media inline. Uploaded inputs are also stored as `application/octet-stream`.
+
+The web UI downloads via same-origin `GET /api/jobs/{id}/download` (job token required) and does not navigate to the R2 URL.
+
+Presigned URL expiry (`expires_in_sec` / `UPLOAD_URL_TTL_SEC` / `DOWNLOAD_URL_TTL_SEC`) is separate from object retention.
 
 ## Rate limits
 

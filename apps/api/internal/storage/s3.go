@@ -3,6 +3,9 @@ package storage
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -53,6 +56,25 @@ func New(cfg config.Config) (*Client, error) {
 	}, nil
 }
 
+func contentDisposition(filename string) string {
+	base := filepath.Base(strings.TrimSpace(filename))
+	if base == "" || base == "." || base == string(filepath.Separator) {
+		base = "download"
+	}
+	// ASCII fallback for legacy clients; strip quotes/control chars.
+	safe := strings.Map(func(r rune) rune {
+		if r < 32 || r == 127 || r == '"' || r == '\\' {
+			return '_'
+		}
+		return r
+	}, base)
+	return fmt.Sprintf(
+		`attachment; filename="%s"; filename*=UTF-8''%s`,
+		safe,
+		url.PathEscape(base),
+	)
+}
+
 func (c *Client) PresignPut(ctx context.Context, key, contentType string) (string, error) {
 	out, err := c.presign.PresignPutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(c.bucket),
@@ -65,10 +87,13 @@ func (c *Client) PresignPut(ctx context.Context, key, contentType string) (strin
 	return out.URL, nil
 }
 
-func (c *Client) PresignGet(ctx context.Context, key string) (string, error) {
+func (c *Client) PresignGet(ctx context.Context, key, filename string) (string, error) {
+	// Force download (not inline playback) even if the URL is opened in another tab.
 	out, err := c.presign.PresignGetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(c.bucket),
-		Key:    aws.String(key),
+		Bucket:                     aws.String(c.bucket),
+		Key:                        aws.String(key),
+		ResponseContentDisposition: aws.String(contentDisposition(filename)),
+		ResponseContentType:        aws.String("application/octet-stream"),
 	}, s3.WithPresignExpires(c.ttlDownload))
 	if err != nil {
 		return "", fmt.Errorf("presign get: %w", err)

@@ -14,6 +14,7 @@ import boto3
 import psycopg
 import redis
 from botocore.config import Config as BotoConfig
+from botocore.exceptions import ClientError
 from silence_core import SilenceRemoverError, process_file
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -33,6 +34,9 @@ S3_FORCE_PATH_STYLE = os.getenv("S3_FORCE_PATH_STYLE", "true").lower() in {
     "yes",
 }
 BRPOP_TIMEOUT = int(os.getenv("BRPOP_TIMEOUT", "5"))
+# How long uploaded/processed objects are kept in object storage.
+OBJECT_RETENTION_HOURS = int(os.getenv("OBJECT_RETENTION_HOURS", "24"))
+CLEANUP_INTERVAL_SEC = int(os.getenv("CLEANUP_INTERVAL_SEC", "900"))
 
 
 def s3_client():
@@ -78,6 +82,56 @@ def update_status(
     conn.commit()
 
 
+def delete_object(s3, key: str) -> None:
+    if not key:
+        return
+    try:
+        s3.delete_object(Bucket=S3_BUCKET, Key=key)
+    except ClientError as exc:
+        log.warning("failed to delete s3://%s/%s: %s", S3_BUCKET, key, exc)
+
+
+def cleanup_expired_objects(conn: psycopg.Connection, s3) -> int:
+    """Delete input/output objects older than OBJECT_RETENTION_HOURS."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, input_key, output_key
+            FROM jobs
+            WHERE created_at < NOW() - (%s || ' hours')::interval
+              AND (input_key <> '' OR output_key <> '')
+            ORDER BY created_at ASC
+            LIMIT 200
+            """,
+            (str(OBJECT_RETENTION_HOURS),),
+        )
+        rows = cur.fetchall()
+
+    purged = 0
+    for job_id, input_key, output_key in rows:
+        delete_object(s3, input_key)
+        delete_object(s3, output_key)
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE jobs
+                SET input_key = '', output_key = '', updated_at = NOW()
+                WHERE id = %s
+                """,
+                (job_id,),
+            )
+        purged += 1
+
+    if purged:
+        conn.commit()
+        log.info(
+            "purged storage for %d job(s) older than %dh",
+            purged,
+            OBJECT_RETENTION_HOURS,
+        )
+    return purged
+
+
 def process_job(conn: psycopg.Connection, s3, payload: dict) -> None:
     job_id = payload["job_id"]
     input_key = payload["input_key"]
@@ -102,7 +156,16 @@ def process_job(conn: psycopg.Connection, s3, payload: dict) -> None:
             return
 
         try:
-            s3.upload_file(str(output_path), S3_BUCKET, output_key)
+            s3.upload_file(
+                str(output_path),
+                S3_BUCKET,
+                output_key,
+                ExtraArgs={
+                    # Prevent inline playback if the object URL is opened elsewhere.
+                    "ContentType": "application/octet-stream",
+                    "ContentDisposition": f'attachment; filename="output{suffix}"',
+                },
+            )
         except Exception as exc:
             update_status(
                 conn,
@@ -119,12 +182,43 @@ def process_job(conn: psycopg.Connection, s3, payload: dict) -> None:
 
 
 def main() -> None:
-    rdb = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+    # socket_timeout must exceed BRPOP_TIMEOUT so an empty-queue nil reply
+    # is not raced by the client socket timeout (redis-py quirk).
+    rdb = redis.Redis.from_url(
+        REDIS_URL,
+        decode_responses=True,
+        socket_connect_timeout=5,
+        socket_timeout=BRPOP_TIMEOUT + 5,
+        health_check_interval=30,
+    )
     s3 = s3_client()
+    last_cleanup = 0.0
 
-    log.info("worker started; queue=%s", QUEUE_KEY)
+    log.info(
+        "worker started; queue=%s retention=%dh cleanup_every=%ds",
+        QUEUE_KEY,
+        OBJECT_RETENTION_HOURS,
+        CLEANUP_INTERVAL_SEC,
+    )
     while True:
-        item = rdb.brpop(QUEUE_KEY, timeout=BRPOP_TIMEOUT)
+        now = time.time()
+        if now - last_cleanup >= CLEANUP_INTERVAL_SEC:
+            try:
+                with psycopg.connect(DATABASE_URL) as conn:
+                    cleanup_expired_objects(conn, s3)
+            except Exception:
+                log.exception("storage cleanup failed")
+            last_cleanup = now
+
+        try:
+            item = rdb.brpop(QUEUE_KEY, timeout=BRPOP_TIMEOUT)
+        except redis.TimeoutError:
+            # Empty queue or socket race — treat as idle poll.
+            continue
+        except redis.ConnectionError:
+            log.exception("redis connection lost; retrying")
+            time.sleep(1)
+            continue
         if not item:
             continue
         _, raw = item

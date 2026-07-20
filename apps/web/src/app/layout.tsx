@@ -14,8 +14,12 @@ const body = Figtree({
 });
 
 export const metadata: Metadata = {
-  title: "CutAir — silence remover",
-  description: "Free jump-cut silence removal for voiceovers and short video.",
+  title: "Silence Remover by Puhulab",
+  description: "Remove quiet gaps from voiceovers and short videos — free, no account.",
+  icons: {
+    icon: [{ url: "/brand/favicon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/brand/icon.svg" }],
+  },
 };
 
 export default function RootLayout({
