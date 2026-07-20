@@ -1,0 +1,8 @@
+# Local-only overrides. Do not use on Dokploy (host port binds conflict with Traefik).
+#
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+#
+services:
+  web:
+    ports:
+      - "${WEB_HOST_PORT:-3000}:3000"

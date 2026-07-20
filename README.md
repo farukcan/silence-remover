@@ -108,16 +108,16 @@ Important env vars:
 
 ```bash
 # Local with MinIO (.env.example sets COMPOSE_PROFILES=minio)
-docker compose up --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 ```
 
 Open `http://localhost:3000`.
 
 ### Dokploy
 
-1. Create an application from this Git repo using Compose.
+1. Create an application from this Git repo using Compose (`docker-compose.yml` only — not `docker-compose.local.yml`).
 2. Set env from `.env.example` (prefer Cloudflare R2 in production).
-3. Attach your domain **only** to the `web` service.
+3. Attach your domain **only** to the `web` service (container port `3000`).
 4. Leave `api` / `worker` / `postgres` / `redis` without public domains.
 5. Set `S3_PUBLIC_ENDPOINT` to a URL the **browser** can reach (not `http://minio:9000`).
 
@@ -149,6 +149,7 @@ silence-remover/
 │   └── silence_core/ # Shared processing library
 ├── docs/             # architecture, api, deploy
 ├── docker-compose.yml
+├── docker-compose.local.yml  # local host ports only
 ├── .env.example
 └── README.md
 ```
@@ -160,6 +161,7 @@ silence-remover/
 | Problem | Fix |
 |---------|-----|
 | `ffmpeg` not found (CLI) | Install ffmpeg (`brew` / `apt`) |
+| `Bind for 0.0.0.0:3000 failed` (Dokploy) | Use `docker-compose.yml` only; do not mount `docker-compose.local.yml` |
 | Upload fails with MinIO | Ensure port `9000` is reachable and `S3_PUBLIC_ENDPOINT` matches the browser host |
 | Rate limit errors | Wait for the daily window or raise `RATE_LIMIT_*` env vars |
 | `mlx-whisper` import error | Apple Silicon + Python 3.11; not used by the SaaS worker |

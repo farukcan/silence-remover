@@ -120,8 +120,10 @@ services:
       API_INTERNAL_URL: http://api:8080
     depends_on:
       - api
-    ports:
-      - "3000:3000"
+    # No host port bind — Dokploy proxies to container port 3000.
+    # Local: also use docker-compose.local.yml (see docs/deploy.md).
+    expose:
+      - "3000"
     restart: unless-stopped
     # Dokploy: attach your public domain + HTTPS to this service only.
 

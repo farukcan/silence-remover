@@ -21,22 +21,25 @@ HTTPS and domain routing are handled by Dokploy — there is no Caddy service in
 ```bash
 cp .env.example .env
 # .env.example sets COMPOSE_PROFILES=minio for local object storage
-docker compose up --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 ```
 
-- UI: `http://localhost:3000`
+- UI: `http://localhost:3000` (published only via `docker-compose.local.yml`)
 - MinIO API: `http://localhost:9000` (must match `S3_PUBLIC_ENDPOINT` for browser uploads)
 - Without `COMPOSE_PROFILES=minio` (or `--profile minio`), MinIO containers are not started
+
+`docker-compose.yml` does **not** bind host ports for `web` — Dokploy’s proxy reaches container port `3000` via `expose`. Binding `3000:3000` on the VPS fails when that port is already taken.
 
 ## Dokploy checklist
 
 1. Create a Compose application from this Git repository.
 2. Copy env from [`.env.example`](../.env.example); set strong `POSTGRES_PASSWORD` and real S3 credentials.
-3. Domain → **`web` service only**. Do not expose `api`.
-4. Set `API_INTERNAL_URL=http://api:8080` (Compose DNS name).
-5. Configure object storage (prefer R2 in production — see below).
-6. Confirm `S3_PUBLIC_ENDPOINT` is reachable from end-user browsers.
-7. Deploy and hit `/` then run a short audio job end-to-end.
+3. Domain → **`web` service only** (container port **3000**). Do not expose `api`.
+4. Do **not** add `docker-compose.local.yml` on Dokploy (it binds host `:3000`).
+5. Set `API_INTERNAL_URL=http://api:8080` (Compose DNS name).
+6. Configure object storage (prefer R2 in production — see below).
+7. Confirm `S3_PUBLIC_ENDPOINT` is reachable from end-user browsers.
+8. Deploy and hit `/` then run a short audio job end-to-end.
 
 ## Environment reference
 
@@ -113,6 +116,7 @@ S3_BUCKET=silence-remover
 
 | Symptom | Likely cause |
 |---------|----------------|
+| `Bind for 0.0.0.0:3000 failed: port is already allocated` | Host port publish on Dokploy — use base `docker-compose.yml` only (no `docker-compose.local.yml`) |
 | Upload fails in browser | `S3_PUBLIC_ENDPOINT` not reachable or bucket CORS |
 | Job stuck `pending_upload` | Complete-upload never called / HeadObject failed |
 | Job stuck `queued` | Worker not running or Redis key mismatch (`QUEUE_KEY`) |
