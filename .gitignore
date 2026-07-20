@@ -10,6 +10,7 @@ build/
 venv/
 .env
 .env.*
+!.env.example
 
 # OS / IDE
 .DS_Store
@@ -17,6 +18,17 @@ venv/
 .vscode/
 *.swp
 *.swo
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+apps/web/.next/
+apps/web/node_modules/
+
+# Go
+apps/api/api
+*.exe
 
 # Media & generated outputs
 *.mp3
@@ -30,4 +42,6 @@ venv/
 *.mkv
 *.webm
 *_nosilence.*
-*.json
+
+# Keep sample transcript JSON if present in repo history; ignore local dumps
+voiceover_nosilence.json

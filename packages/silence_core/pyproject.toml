@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "silence-core"
+version = "0.1.0"
+description = "Silero VAD silence removal core library"
+requires-python = ">=3.10"
+dependencies = [
+  "silero-vad>=5.1",
+  "torch",
+  "numpy",
+]
+
+[project.scripts]
+silence-remover = "silence_core.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["silence_core*"]

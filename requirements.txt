@@ -1,4 +1,8 @@
+# Local CLI toolkit (Apple Silicon transcription optional)
 silero-vad>=5.1
 torch
 numpy
 mlx-whisper
+
+# For silence removal only on Linux / workers, prefer:
+#   pip install -e packages/silence_core
