@@ -20,18 +20,29 @@
   box-sizing: border-box;
 }
 
+html {
+  /* Solid fill behind overscroll / rubber-band (Safari, Chrome). */
+  background-color: var(--ink);
+  color-scheme: dark;
+  min-height: 100%;
+  min-height: 100dvh;
+}
+
 html,
 body {
   min-height: 100%;
+  min-height: 100dvh;
 }
 
 body {
   margin: 0;
   color: var(--text);
-  background:
+  background-color: var(--ink);
+  background-image:
     radial-gradient(1200px 600px at 10% -10%, rgba(125, 255, 195, 0.12), transparent 55%),
     radial-gradient(900px 500px at 90% 0%, rgba(214, 255, 75, 0.1), transparent 50%),
     linear-gradient(160deg, var(--ink) 0%, var(--ink-2) 45%, #0a1412 100%);
+  background-attachment: fixed;
   font-family: var(--font-body), ui-sans-serif, sans-serif;
 }
 

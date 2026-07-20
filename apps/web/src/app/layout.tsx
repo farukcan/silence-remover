@@ -41,6 +41,8 @@ export const metadata: Metadata = {
     title,
     description,
   },
+  themeColor: "#0b1110",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({
