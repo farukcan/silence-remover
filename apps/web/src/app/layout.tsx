@@ -16,10 +16,8 @@ const body = Figtree({
 export const metadata: Metadata = {
   title: "Silence Remover by Puhulab",
   description: "Remove quiet gaps from voiceovers and short videos — free, no account.",
-  icons: {
-    icon: [{ url: "/brand/favicon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/brand/icon.svg" }],
-  },
+  // Favicon comes from apps/web/src/app/icon.svg (Next.js file convention).
+  // Header mark uses /brand/icon.svg from public/.
 };
 
 export default function RootLayout({

@@ -41,13 +41,17 @@ type createJobResponse struct {
 }
 
 type jobResponse struct {
-	JobID            string  `json:"job_id"`
-	Status           string  `json:"status"`
-	OriginalFilename string  `json:"original_filename"`
-	DownloadURL      *string `json:"download_url,omitempty"`
-	Error            *string `json:"error,omitempty"`
-	CreatedAt        string  `json:"created_at"`
-	UpdatedAt        string  `json:"updated_at"`
+	JobID               string   `json:"job_id"`
+	Status              string   `json:"status"`
+	OriginalFilename    string   `json:"original_filename"`
+	DownloadURL         *string  `json:"download_url,omitempty"`
+	PreviewOriginalURL  *string  `json:"preview_original_url,omitempty"`
+	PreviewProcessedURL *string  `json:"preview_processed_url,omitempty"`
+	InputDurationSec    *float64 `json:"input_duration_sec,omitempty"`
+	OutputDurationSec   *float64 `json:"output_duration_sec,omitempty"`
+	Error               *string  `json:"error,omitempty"`
+	CreatedAt           string   `json:"created_at"`
+	UpdatedAt           string   `json:"updated_at"`
 }
 
 func (a *API) Healthz(w http.ResponseWriter, _ *http.Request) {
@@ -182,6 +186,14 @@ func (a *API) GetJob(w http.ResponseWriter, r *http.Request) {
 	if job.Error.Valid {
 		resp.Error = &job.Error.String
 	}
+	if job.InputDurationSec.Valid {
+		v := job.InputDurationSec.Float64
+		resp.InputDurationSec = &v
+	}
+	if job.OutputDurationSec.Valid {
+		v := job.OutputDurationSec.Float64
+		resp.OutputDurationSec = &v
+	}
 	if job.Status == db.StatusCompleted && job.OutputKey != "" {
 		name := job.OriginalFilename
 		if name == "" {
@@ -193,6 +205,22 @@ func (a *API) GetJob(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		resp.DownloadURL = &url
+
+		processedPreview, err := a.Storage.PresignGetPreview(r.Context(), job.OutputKey, name)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to create preview URL")
+			return
+		}
+		resp.PreviewProcessedURL = &processedPreview
+
+		if job.InputKey != "" {
+			originalPreview, err := a.Storage.PresignGetPreview(r.Context(), job.InputKey, name)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "failed to create preview URL")
+				return
+			}
+			resp.PreviewOriginalURL = &originalPreview
+		}
 	}
 	writeJSON(w, http.StatusOK, resp)
 }

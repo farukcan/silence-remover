@@ -13,8 +13,10 @@ function downloadFilename(original?: string) {
 }
 
 function contentDisposition(filename: string) {
-  const safe = filename.replace(/["\\\x00-\x1f\x7f]/g, "_");
-  return `attachment; filename="${safe}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
+  // Header values must be ByteString; keep quoted filename ASCII-only.
+  const ascii = filename.replace(/[^\x20-\x7E]/g, "_").replace(/["\\]/g, "_");
+  const fallback = ascii.trim() || "download";
+  return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
 }
 
 export async function GET(request: Request, { params }: Params) {

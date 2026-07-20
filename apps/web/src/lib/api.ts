@@ -13,6 +13,10 @@ export type JobResponse = {
   status: string;
   original_filename: string;
   download_url?: string;
+  preview_original_url?: string;
+  preview_processed_url?: string;
+  input_duration_sec?: number;
+  output_duration_sec?: number;
   error?: string;
   created_at: string;
   updated_at: string;

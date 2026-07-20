@@ -59,16 +59,23 @@ def update_status(
     *,
     error: str | None = None,
     completed: bool = False,
+    input_duration_sec: float | None = None,
+    output_duration_sec: float | None = None,
 ) -> None:
     with conn.cursor() as cur:
         if completed:
             cur.execute(
                 """
                 UPDATE jobs
-                SET status = %s, error = %s, updated_at = NOW(), completed_at = NOW()
+                SET status = %s,
+                    error = %s,
+                    input_duration_sec = COALESCE(%s, input_duration_sec),
+                    output_duration_sec = COALESCE(%s, output_duration_sec),
+                    updated_at = NOW(),
+                    completed_at = NOW()
                 WHERE id = %s
                 """,
-                (status, error, job_id),
+                (status, error, input_duration_sec, output_duration_sec, job_id),
             )
         else:
             cur.execute(
@@ -99,6 +106,7 @@ def cleanup_expired_objects(conn: psycopg.Connection, s3) -> int:
             SELECT id, input_key, output_key
             FROM jobs
             WHERE created_at < NOW() - (%s || ' hours')::interval
+              AND status IN ('completed', 'failed')
               AND (input_key <> '' OR output_key <> '')
             ORDER BY created_at ASC
             LIMIT 200
@@ -149,7 +157,7 @@ def process_job(conn: psycopg.Connection, s3, payload: dict) -> None:
         s3.download_file(S3_BUCKET, input_key, str(input_path))
 
         try:
-            process_file(input_path, output_path)
+            result = process_file(input_path, output_path)
         except SilenceRemoverError as exc:
             update_status(conn, job_id, "failed", error=str(exc), completed=True)
             log.warning("job %s failed: %s", job_id, exc)
@@ -161,7 +169,7 @@ def process_job(conn: psycopg.Connection, s3, payload: dict) -> None:
                 S3_BUCKET,
                 output_key,
                 ExtraArgs={
-                    # Prevent inline playback if the object URL is opened elsewhere.
+                    # Stored as binary; preview URLs override Content-Type via response headers.
                     "ContentType": "application/octet-stream",
                     "ContentDisposition": f'attachment; filename="output{suffix}"',
                 },
@@ -177,8 +185,20 @@ def process_job(conn: psycopg.Connection, s3, payload: dict) -> None:
             log.warning("job %s upload failed: %s", job_id, exc)
             return
 
-        update_status(conn, job_id, "completed", completed=True)
-        log.info("job %s completed", job_id)
+        update_status(
+            conn,
+            job_id,
+            "completed",
+            completed=True,
+            input_duration_sec=result.input_duration,
+            output_duration_sec=result.output_duration,
+        )
+        log.info(
+            "job %s completed (%.2fs → %.2fs)",
+            job_id,
+            result.input_duration,
+            result.output_duration,
+        )
 
 
 def main() -> None:

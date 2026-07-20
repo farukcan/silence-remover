@@ -107,10 +107,11 @@ sequenceDiagram
 - **Job token:** opaque UUID returned at create time; required as `X-Job-Token` for complete/status. No user accounts in MVP.
 - **Rate limit:** Redis daily counter + Postgres concurrent active jobs, keyed by client IP (prefer `X-Real-IP` from the edge proxy).
 - **Web → API:** server-side only (`API_INTERNAL_URL`). Do not publish the `api` service in Dokploy.
-- **Presigned URLs:** signed against `S3_PUBLIC_ENDPOINT` so browsers can PUT; server-side Head/Get uses `S3_ENDPOINT`. Download GETs force `Content-Disposition: attachment` + `application/octet-stream` (no inline playback). Uploads are stored as `application/octet-stream`. The web UI proxies downloads via `/api/jobs/{id}/download` so the browser never navigates to R2. Presigned URL TTLs default to 1 hour (`UPLOAD_URL_TTL_SEC` / `DOWNLOAD_URL_TTL_SEC`).
+- **Presigned URLs:** signed against `S3_PUBLIC_ENDPOINT` so browsers can PUT; server-side Head/Get uses `S3_ENDPOINT`. Download GETs force `Content-Disposition: attachment` + `application/octet-stream`. Preview GETs use `inline` + media Content-Type for in-page Before/After players. The web UI proxies downloads via `/api/jobs/{id}/download`. Presigned URL TTLs default to 1 hour (`UPLOAD_URL_TTL_SEC` / `DOWNLOAD_URL_TTL_SEC`).
 - **Object retention:** the worker deletes input/output objects older than `OBJECT_RETENTION_HOURS` (default 24).
 - **Worker Redis poll:** `BRPOP` with `BRPOP_TIMEOUT` (default 5s). Client `socket_timeout` is set above that timeout; `TimeoutError` / connection errors are treated as idle reconnect so an empty queue does not crash the process.
-- **Browser history:** the web UI stores job id + token in `localStorage` for up to 1 day so returning visitors can re-download from the same device.
+- **Browser history:** the web UI stores job id + token in `localStorage` for up to 1 day so returning visitors can re-download / compare from the same device.
+- **Durations:** worker stores `input_duration_sec` / `output_duration_sec` from `silence_core` for UI stats.
 
 ## Out of scope (for now)
 

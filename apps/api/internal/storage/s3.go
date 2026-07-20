@@ -61,18 +61,71 @@ func contentDisposition(filename string) string {
 	if base == "" || base == "." || base == string(filepath.Separator) {
 		base = "download"
 	}
-	// ASCII fallback for legacy clients; strip quotes/control chars.
+	// ASCII fallback for legacy clients / HTTP header ByteString constraints.
 	safe := strings.Map(func(r rune) rune {
-		if r < 32 || r == 127 || r == '"' || r == '\\' {
+		if r < 0x20 || r > 0x7e || r == '"' || r == '\\' {
 			return '_'
 		}
 		return r
 	}, base)
+	if strings.Trim(safe, "_") == "" {
+		safe = "download"
+	}
 	return fmt.Sprintf(
 		`attachment; filename="%s"; filename*=UTF-8''%s`,
 		safe,
 		url.PathEscape(base),
 	)
+}
+
+func inlineDisposition(filename string) string {
+	base := filepath.Base(strings.TrimSpace(filename))
+	if base == "" || base == "." || base == string(filepath.Separator) {
+		base = "preview"
+	}
+	safe := strings.Map(func(r rune) rune {
+		if r < 0x20 || r > 0x7e || r == '"' || r == '\\' {
+			return '_'
+		}
+		return r
+	}, base)
+	if strings.Trim(safe, "_") == "" {
+		safe = "preview"
+	}
+	return fmt.Sprintf(
+		`inline; filename="%s"; filename*=UTF-8''%s`,
+		safe,
+		url.PathEscape(base),
+	)
+}
+
+func MimeFromFilename(name string) string {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".mp3":
+		return "audio/mpeg"
+	case ".wav":
+		return "audio/wav"
+	case ".m4a", ".aac":
+		return "audio/mp4"
+	case ".flac":
+		return "audio/flac"
+	case ".ogg":
+		return "audio/ogg"
+	case ".wma":
+		return "audio/x-ms-wma"
+	case ".mp4", ".m4v":
+		return "video/mp4"
+	case ".mov":
+		return "video/quicktime"
+	case ".webm":
+		return "video/webm"
+	case ".mkv":
+		return "video/x-matroska"
+	case ".avi":
+		return "video/x-msvideo"
+	default:
+		return "application/octet-stream"
+	}
 }
 
 func (c *Client) PresignPut(ctx context.Context, key, contentType string) (string, error) {
@@ -97,6 +150,20 @@ func (c *Client) PresignGet(ctx context.Context, key, filename string) (string, 
 	}, s3.WithPresignExpires(c.ttlDownload))
 	if err != nil {
 		return "", fmt.Errorf("presign get: %w", err)
+	}
+	return out.URL, nil
+}
+
+// PresignGetPreview signs an inline-playable URL with a real media Content-Type.
+func (c *Client) PresignGetPreview(ctx context.Context, key, filename string) (string, error) {
+	out, err := c.presign.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket:                     aws.String(c.bucket),
+		Key:                        aws.String(key),
+		ResponseContentDisposition: aws.String(inlineDisposition(filename)),
+		ResponseContentType:        aws.String(MimeFromFilename(filename)),
+	}, s3.WithPresignExpires(c.ttlDownload))
+	if err != nil {
+		return "", fmt.Errorf("presign get preview: %w", err)
 	}
 	return out.URL, nil
 }

@@ -110,11 +110,16 @@ After the browser finishes the presigned PUT. Verifies the object exists (Head),
 
 `download_url` is present only when `status` is `completed` and the output object still exists (objects are purged after `OBJECT_RETENTION_HOURS`, default 24h).
 
-Presigned GET responses use `Content-Disposition: attachment` and `Content-Type: application/octet-stream` so browsers download instead of playing media inline. Uploaded inputs are also stored as `application/octet-stream`.
+When completed, the response also includes:
 
-The web UI downloads via same-origin `GET /api/jobs/{id}/download` (job token required) and does not navigate to the R2 URL.
+| Field | Purpose |
+|-------|---------|
+| `preview_original_url` | Short-lived inline-playable URL for the uploaded input |
+| `preview_processed_url` | Short-lived inline-playable URL for the processed output |
+| `input_duration_sec` | Input duration from processing |
+| `output_duration_sec` | Output duration from processing |
 
-Presigned URL expiry (`expires_in_sec` / `UPLOAD_URL_TTL_SEC` / `DOWNLOAD_URL_TTL_SEC`) is separate from object retention.
+Presigned GET for **download** uses `Content-Disposition: attachment` + `application/octet-stream`. Preview URLs use `inline` + a real media Content-Type so browsers can play in-page.
 
 ## Rate limits
 

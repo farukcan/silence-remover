@@ -30,6 +30,8 @@ type Job struct {
 	OutputKey        string
 	Error            sql.NullString
 	ClientIP         string
+	InputDurationSec sql.NullFloat64
+	OutputDurationSec sql.NullFloat64
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	CompletedAt      sql.NullTime
@@ -83,6 +85,8 @@ CREATE TABLE IF NOT EXISTS jobs (
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
 CREATE INDEX IF NOT EXISTS idx_jobs_client_ip_created ON jobs(client_ip, created_at);
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS input_duration_sec DOUBLE PRECISION;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS output_duration_sec DOUBLE PRECISION;
 `)
 	return err
 }
@@ -100,11 +104,13 @@ func (s *Store) GetJob(ctx context.Context, id uuid.UUID) (Job, error) {
 	var job Job
 	err := s.DB.QueryRowContext(ctx, `
 SELECT id, token, status, original_filename, content_type, input_key, output_key,
-       error, client_ip, created_at, updated_at, completed_at
+       error, client_ip, input_duration_sec, output_duration_sec,
+       created_at, updated_at, completed_at
 FROM jobs WHERE id = $1
 `, id).Scan(
 		&job.ID, &job.Token, &job.Status, &job.OriginalFilename, &job.ContentType,
 		&job.InputKey, &job.OutputKey, &job.Error, &job.ClientIP,
+		&job.InputDurationSec, &job.OutputDurationSec,
 		&job.CreatedAt, &job.UpdatedAt, &job.CompletedAt,
 	)
 	if err != nil {

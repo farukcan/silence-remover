@@ -29,13 +29,36 @@ type JobResponse = {
   status: string;
   original_filename?: string;
   download_url?: string;
+  preview_original_url?: string;
+  preview_processed_url?: string;
+  input_duration_sec?: number;
+  output_duration_sec?: number;
   error?: string;
   created_at?: string;
   updated_at?: string;
 };
 
+type CompareState = {
+  jobId: string;
+  filename: string;
+  originalUrl: string;
+  processedUrl: string;
+  inputSec: number | null;
+  outputSec: number | null;
+  isVideo: boolean;
+};
+
 const ACCEPT =
   ".mp3,.wav,.m4a,.aac,.flac,.ogg,.wma,.mp4,.mov,.mkv,.webm,.avi,.m4v,audio/*,video/*";
+
+const VIDEO_EXT = new Set([
+  ".mp4",
+  ".mov",
+  ".mkv",
+  ".webm",
+  ".avi",
+  ".m4v",
+]);
 
 function friendlyStatus(status: string): string {
   switch (status) {
@@ -45,6 +68,8 @@ function friendlyStatus(status: string): string {
       return "Uploading…";
     case "queued":
       return "In line…";
+    case "pending_upload":
+      return "Upload incomplete";
     case "processing":
       return "Removing silence…";
     case "completed":
@@ -56,6 +81,36 @@ function friendlyStatus(status: string): string {
     default:
       return "Waiting for a file";
   }
+}
+
+function isVideoFilename(name: string): boolean {
+  const dot = name.lastIndexOf(".");
+  if (dot < 0) return false;
+  return VIDEO_EXT.has(name.slice(dot).toLowerCase());
+}
+
+function formatDuration(sec: number): string {
+  if (!Number.isFinite(sec) || sec < 0) return "—";
+  const total = Math.round(sec);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+function compareFromJob(data: JobResponse, fallbackName: string): CompareState | null {
+  if (!data.preview_processed_url || !data.download_url) return null;
+  const filename = data.original_filename || fallbackName || "file";
+  return {
+    jobId: data.job_id,
+    filename,
+    originalUrl: data.preview_original_url || "",
+    processedUrl: data.preview_processed_url,
+    inputSec:
+      typeof data.input_duration_sec === "number" ? data.input_duration_sec : null,
+    outputSec:
+      typeof data.output_duration_sec === "number" ? data.output_duration_sec : null,
+    isVideo: isVideoFilename(filename),
+  };
 }
 
 async function downloadJobFile(jobId: string, token: string): Promise<void> {
@@ -85,6 +140,8 @@ async function downloadJobFile(jobId: string, token: string): Promise<void> {
 
 export function SilenceUploader() {
   const inputRef = useRef<HTMLInputElement>(null);
+  const originalRef = useRef<HTMLAudioElement | HTMLVideoElement | null>(null);
+  const processedRef = useRef<HTMLAudioElement | HTMLVideoElement | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<JobStatus>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -95,8 +152,24 @@ export function SilenceUploader() {
   const [dragOver, setDragOver] = useState(false);
   const [history, setHistory] = useState<StoredJob[]>([]);
   const [historyReady, setHistoryReady] = useState(false);
+  const [compare, setCompare] = useState<CompareState | null>(null);
 
   const statusLabel = useMemo(() => friendlyStatus(status), [status]);
+
+  const stats = useMemo(() => {
+    if (!compare || compare.inputSec == null || compare.outputSec == null) {
+      return null;
+    }
+    const removed = Math.max(0, compare.inputSec - compare.outputSec);
+    const pct =
+      compare.inputSec > 0 ? Math.round((removed / compare.inputSec) * 100) : 0;
+    return {
+      before: formatDuration(compare.inputSec),
+      after: formatDuration(compare.outputSec),
+      removedSec: Math.round(removed),
+      pct,
+    };
+  }, [compare]);
 
   const refreshHistoryEntry = useCallback(async (entry: StoredJob) => {
     try {
@@ -159,6 +232,7 @@ export function SilenceUploader() {
           const downloadable = Boolean(data.download_url);
           setStatus("completed");
           setReady(downloadable);
+          setCompare(compareFromJob(data, filename));
           setHistory(
             upsertJob({
               jobId,
@@ -224,6 +298,7 @@ export function SilenceUploader() {
     setFile(selected);
     setError(null);
     setReady(false);
+    setCompare(null);
     setJobId(null);
     setStatus("creating");
 
@@ -295,7 +370,7 @@ export function SilenceUploader() {
   }
 
   async function handleDownload(targetJobId?: string) {
-    const id = targetJobId ?? jobId;
+    const id = targetJobId ?? jobId ?? compare?.jobId;
     if (!id || downloading) return;
     const token = getJobToken(id);
     if (!token) {
@@ -322,16 +397,63 @@ export function SilenceUploader() {
           }),
         );
       }
-      if (id === jobId) setReady(false);
+      if (id === jobId) {
+        setReady(false);
+        setCompare(null);
+      }
     } finally {
       setDownloading(false);
       setDownloadingId(null);
     }
   }
 
+  async function openHistoryCompare(entry: StoredJob) {
+    setError(null);
+    try {
+      const res = await fetch(`/api/jobs/${entry.jobId}`, {
+        headers: { "X-Job-Token": entry.token },
+      });
+      const data = (await res.json()) as JobResponse & { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Couldn’t open this file.");
+      const next = compareFromJob(data, entry.filename);
+      if (!next) {
+        setHistory(
+          upsertJob({
+            ...entry,
+            status: "expired",
+            downloadable: false,
+            updatedAt: new Date().toISOString(),
+          }),
+        );
+        throw new Error("This file is no longer available.");
+      }
+      setJobId(entry.jobId);
+      setFile(null);
+      setStatus("completed");
+      setReady(true);
+      setCompare(next);
+      setHistory(
+        upsertJob({
+          ...entry,
+          filename: next.filename,
+          status: "completed",
+          downloadable: true,
+          updatedAt: new Date().toISOString(),
+        }),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn’t open this file.");
+    }
+  }
+
   function onFiles(files: FileList | null) {
     const next = files?.[0];
     if (next) void run(next);
+  }
+
+  function pauseOther(which: "original" | "processed") {
+    const other = which === "original" ? processedRef.current : originalRef.current;
+    other?.pause();
   }
 
   const recent = history.filter((j) => j.jobId !== jobId || status === "idle");
@@ -377,20 +499,97 @@ export function SilenceUploader() {
           <span className="status-dot" data-state={status} />
           <strong>{statusLabel}</strong>
         </div>
-        {file ? <p className="status-file">{file.name}</p> : null}
+        {(file || compare) ? (
+          <p className="status-file">{file?.name ?? compare?.filename}</p>
+        ) : null}
         {jobId ? <p className="status-meta">Ref {jobId.slice(0, 8)}</p> : null}
         {error ? <p className="status-error">{error}</p> : null}
-        {ready ? (
-          <button
-            type="button"
-            className="download"
-            onClick={() => void handleDownload()}
-            disabled={downloading}
-          >
-            {downloading && downloadingId === jobId
-              ? "Downloading…"
-              : "Download your file"}
-          </button>
+
+        {ready && compare ? (
+          <div className="result">
+            {stats ? (
+              <div className="result__stats" aria-label="Duration change">
+                <span>
+                  {stats.before} → {stats.after}
+                </span>
+                <span className="result__saved">
+                  {stats.removedSec}s shorter ({stats.pct}%)
+                </span>
+              </div>
+            ) : null}
+
+            <div className="compare">
+              <div className="compare__pane">
+                <p className="compare__label">Before</p>
+                {compare.originalUrl ? (
+                  compare.isVideo ? (
+                    <video
+                      ref={(el) => {
+                        originalRef.current = el;
+                      }}
+                      className="compare__media"
+                      src={compare.originalUrl}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      onPlay={() => pauseOther("original")}
+                    />
+                  ) : (
+                    <audio
+                      ref={(el) => {
+                        originalRef.current = el;
+                      }}
+                      className="compare__media"
+                      src={compare.originalUrl}
+                      controls
+                      preload="metadata"
+                      onPlay={() => pauseOther("original")}
+                    />
+                  )
+                ) : (
+                  <p className="compare__missing">Original preview unavailable</p>
+                )}
+              </div>
+              <div className="compare__pane">
+                <p className="compare__label">After</p>
+                {compare.isVideo ? (
+                  <video
+                    ref={(el) => {
+                      processedRef.current = el;
+                    }}
+                    className="compare__media"
+                    src={compare.processedUrl}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    onPlay={() => pauseOther("processed")}
+                  />
+                ) : (
+                  <audio
+                    ref={(el) => {
+                      processedRef.current = el;
+                    }}
+                    className="compare__media"
+                    src={compare.processedUrl}
+                    controls
+                    preload="metadata"
+                    onPlay={() => pauseOther("processed")}
+                  />
+                )}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="download"
+              onClick={() => void handleDownload(compare.jobId)}
+              disabled={downloading}
+            >
+              {downloading && downloadingId === compare.jobId
+                ? "Downloading…"
+                : "Download your file"}
+            </button>
+          </div>
         ) : null}
       </div>
 
@@ -412,16 +611,25 @@ export function SilenceUploader() {
                   </span>
                 </div>
                 {item.downloadable ? (
-                  <button
-                    type="button"
-                    className="history__download"
-                    onClick={() => void handleDownload(item.jobId)}
-                    disabled={downloading}
-                  >
-                    {downloading && downloadingId === item.jobId
-                      ? "…"
-                      : "Download"}
-                  </button>
+                  <div className="history__actions">
+                    <button
+                      type="button"
+                      className="history__secondary"
+                      onClick={() => void openHistoryCompare(item)}
+                    >
+                      Compare
+                    </button>
+                    <button
+                      type="button"
+                      className="history__download"
+                      onClick={() => void handleDownload(item.jobId)}
+                      disabled={downloading}
+                    >
+                      {downloading && downloadingId === item.jobId
+                        ? "…"
+                        : "Download"}
+                    </button>
+                  </div>
                 ) : null}
               </li>
             ))}
