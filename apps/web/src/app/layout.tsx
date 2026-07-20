@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Archivo_Black, Figtree } from "next/font/google";
+import { PwaRegister } from "@/components/PwaRegister";
 import "./globals.css";
 
 const display = Archivo_Black({
@@ -21,6 +22,13 @@ const title = "Silence Remover by Puhulab";
 const description =
   "Remove quiet gaps from voiceovers and short videos — free, no account.";
 
+export const viewport: Viewport = {
+  themeColor: "#0b1110",
+  colorScheme: "dark",
+  width: "device-width",
+  initialScale: 1,
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title,
@@ -28,6 +36,7 @@ export const metadata: Metadata = {
   applicationName: "Silence Remover",
   // Favicon: apps/web/src/app/icon.svg
   // Share preview: apps/web/src/app/opengraph-image.tsx (+ twitter-image)
+  // PWA: apps/web/src/app/manifest.ts + /icon-192 + /icon-512 + /sw.js
   openGraph: {
     type: "website",
     locale: "en_US",
@@ -41,8 +50,14 @@ export const metadata: Metadata = {
     title,
     description,
   },
-  themeColor: "#0b1110",
-  colorScheme: "dark",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Silence Remover",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export default function RootLayout({
@@ -54,6 +69,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${display.variable} ${body.variable} antialiased`}>
         {children}
+        <PwaRegister />
       </body>
     </html>
   );
