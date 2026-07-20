@@ -1,6 +1,6 @@
 import { SilenceUploader } from "@/components/SilenceUploader";
 
-const bars = [18, 34, 22, 48, 28, 56, 30, 44, 20, 52, 26, 40, 16, 46, 24, 58, 32, 42];
+const bars = [32, 58, 38, 82, 48, 96, 52, 76, 34, 90, 44, 70, 28, 80, 40, 100, 54, 72];
 
 export default function HomePage() {
   return (
@@ -32,7 +32,10 @@ export default function HomePage() {
         </div>
         <div className="waveform" aria-hidden="true">
           {bars.map((h, i) => (
-            <span key={i} style={{ height: h, animationDelay: `${i * 0.06}s` }} />
+            <span
+              key={i}
+              style={{ ["--bar" as string]: h, animationDelay: `${i * 0.06}s` }}
+            />
           ))}
         </div>
       </section>
