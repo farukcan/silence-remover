@@ -106,10 +106,18 @@ a {
 
 .hero {
   display: grid;
-  gap: 1.25rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1.5rem 2.5rem;
+  align-items: end;
   margin-bottom: 2.5rem;
   animation: rise 0.8s ease both;
   animation-delay: 0.08s;
+}
+
+.hero__copy {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
 }
 
 .hero h2 {
@@ -130,12 +138,13 @@ a {
 }
 
 .waveform {
-  height: 56px;
+  height: 72px;
   display: grid;
   grid-auto-flow: column;
   gap: 4px;
   align-items: end;
-  margin: 0.5rem 0 0;
+  margin: 0;
+  flex-shrink: 0;
 }
 
 .waveform span {
@@ -465,6 +474,16 @@ audio.compare__media {
   .brand {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .hero {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .waveform {
+    height: 56px;
+    justify-self: start;
   }
 
   .compare {

@@ -41,6 +41,7 @@ type JobResponse = {
 type CompareState = {
   jobId: string;
   filename: string;
+  downloadUrl: string;
   originalUrl: string;
   processedUrl: string;
   inputSec: number | null;
@@ -103,6 +104,7 @@ function compareFromJob(data: JobResponse, fallbackName: string): CompareState |
   return {
     jobId: data.job_id,
     filename,
+    downloadUrl: data.download_url,
     originalUrl: data.preview_original_url || "",
     processedUrl: data.preview_processed_url,
     inputSec:
@@ -113,20 +115,23 @@ function compareFromJob(data: JobResponse, fallbackName: string): CompareState |
   };
 }
 
-async function downloadJobFile(jobId: string, token: string): Promise<void> {
-  const res = await fetch(`/api/jobs/${jobId}/download`, {
-    headers: { "X-Job-Token": token },
-  });
-  if (!res.ok) {
-    const data = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(data.error ?? "Download failed. Try again.");
-  }
+function downloadFilename(original?: string) {
+  const base = (original || "silence-removed").trim() || "silence-removed";
+  const dot = base.lastIndexOf(".");
+  if (dot <= 0) return `${base}-cut`;
+  return `${base.slice(0, dot)}-cut${base.slice(dot)}`;
+}
+
+/** Fetch the processed file directly from R2 (presigned attachment URL). */
+async function downloadFromR2(url: string, originalName: string): Promise<void> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Download failed. Try again.");
   const blob = await res.blob();
   const disposition = res.headers.get("Content-Disposition") ?? "";
   const match = /filename\*=UTF-8''([^;]+)|filename="([^"]+)"/i.exec(disposition);
   const name = match
     ? decodeURIComponent(match[1] || match[2])
-    : "silence-removed-cut";
+    : downloadFilename(originalName);
   const objectUrl = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = objectUrl;
@@ -381,7 +386,21 @@ export function SilenceUploader() {
     setDownloadingId(id);
     setError(null);
     try {
-      await downloadJobFile(id, token);
+      // Refresh a short-lived R2 download URL, then pull the file directly from R2.
+      const res = await fetch(`/api/jobs/${id}`, {
+        headers: { "X-Job-Token": token },
+      });
+      const data = (await res.json()) as JobResponse & { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Download failed. Try again.");
+      if (!data.download_url) {
+        throw new Error("This file is no longer available.");
+      }
+      const next = compareFromJob(data, data.original_filename || compare?.filename || "file");
+      if (next) setCompare(next);
+      await downloadFromR2(
+        data.download_url,
+        data.original_filename || compare?.filename || "file",
+      );
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Download failed. Try again.";

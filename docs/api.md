@@ -119,7 +119,7 @@ When completed, the response also includes:
 | `input_duration_sec` | Input duration from processing |
 | `output_duration_sec` | Output duration from processing |
 
-Presigned GET for **download** uses `Content-Disposition: attachment` + `application/octet-stream`. Preview URLs use `inline` + a real media Content-Type so browsers can play in-page.
+Presigned GET for **download** uses `Content-Disposition: attachment` + `application/octet-stream`. Preview URLs use `inline` + a real media Content-Type so browsers can play in-page. The web UI downloads by fetching `download_url` directly from object storage (no file proxy through the app server).
 
 ## Rate limits
 

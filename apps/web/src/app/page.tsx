@@ -23,11 +23,13 @@ export default function HomePage() {
       </header>
 
       <section className="hero">
-        <h2>Tighten the take. Keep the voice.</h2>
-        <p>
-          Upload a voiceover or clip. We remove the quiet gaps and give you a
-          tighter cut — no account, no paywall.
-        </p>
+        <div className="hero__copy">
+          <h2>Tighten the take. Keep the voice.</h2>
+          <p>
+            Upload a voiceover or clip. We remove the quiet gaps and give you a
+            tighter cut — no account, no paywall.
+          </p>
+        </div>
         <div className="waveform" aria-hidden="true">
           {bars.map((h, i) => (
             <span key={i} style={{ height: h, animationDelay: `${i * 0.06}s` }} />

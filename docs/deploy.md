@@ -115,7 +115,7 @@ S3_BUCKET=silence-remover
 
 Add `http://localhost:3000` to `AllowedOrigins` if you also upload from local. Origin must match exactly (scheme + host, no trailing slash).
 
-Downloads go through the web app (`/api/jobs/{id}/download`), so download itself does not need browser→R2 CORS. **GET** is still required for in-page Before/After preview players (presigned media URLs). Without the PUT policy, upload preflight fails with *No 'Access-Control-Allow-Origin' header*.
+Browser **upload** (PUT) and **download/preview** (GET) talk to R2 directly via presigned URLs. Your CORS rule must allow `GET`, `PUT`, and `HEAD` from the web origin (as in the screenshot for `https://silence-remover.puhulab.com`). Without that policy, browser preflight fails with *No 'Access-Control-Allow-Origin' header*.
 
 ### Object retention (1 day)
 
