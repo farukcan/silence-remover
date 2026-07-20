@@ -84,7 +84,7 @@ MVP: **free**, no signup, **IP rate limits**, Go API reachable only from the web
 - `api` — internal only (do **not** publish a domain)
 - `worker` — internal
 - `postgres`, `redis` — internal
-- `minio` — local/dev object storage (swap env for Cloudflare R2 in production)
+- `minio` / `minio-init` — optional (Compose profile `minio`); use Cloudflare R2 in production without the profile
 
 ### Configure
 
@@ -97,6 +97,7 @@ Important env vars:
 
 | Variable | Purpose |
 |----------|---------|
+| `COMPOSE_PROFILES` | `minio` for local MinIO; empty/omit for R2 |
 | `S3_ENDPOINT` | Server-side S3/R2/MinIO URL (`http://minio:9000` in Compose) |
 | `S3_PUBLIC_ENDPOINT` | Browser-facing URL for presigned PUT/GET |
 | `RATE_LIMIT_JOBS_PER_DAY` | Default `10` |
@@ -106,6 +107,7 @@ Important env vars:
 ### Run
 
 ```bash
+# Local with MinIO (.env.example sets COMPOSE_PROFILES=minio)
 docker compose up --build
 ```
 
@@ -119,7 +121,7 @@ Open `http://localhost:3000`.
 4. Leave `api` / `worker` / `postgres` / `redis` without public domains.
 5. Set `S3_PUBLIC_ENDPOINT` to a URL the **browser** can reach (not `http://minio:9000`).
 
-For R2, set both `S3_ENDPOINT` and `S3_PUBLIC_ENDPOINT` to your R2 S3 API URL. You can leave the Compose `minio` service unused or remove it later.
+For R2, set both `S3_ENDPOINT` and `S3_PUBLIC_ENDPOINT` to your R2 S3 API URL and leave `COMPOSE_PROFILES` empty so MinIO is not started.
 
 ### Go API (internal)
 

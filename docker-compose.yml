@@ -23,8 +23,11 @@ services:
       retries: 10
     restart: unless-stopped
 
+  # Opt-in via profile `minio` (COMPOSE_PROFILES=minio or --profile minio).
+  # Leave disabled when using Cloudflare R2 so these containers are not created.
   minio:
     image: minio/minio:latest
+    profiles: ["minio"]
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
@@ -38,6 +41,7 @@ services:
 
   minio-init:
     image: minio/mc:latest
+    profiles: ["minio"]
     depends_on:
       - minio
     entrypoint: >
@@ -80,8 +84,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      minio-init:
-        condition: service_completed_successfully
     expose:
       - "8080"
     restart: unless-stopped
@@ -106,8 +108,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      minio-init:
-        condition: service_completed_successfully
       api:
         condition: service_started
     restart: unless-stopped

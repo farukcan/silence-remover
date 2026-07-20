@@ -13,18 +13,20 @@ HTTPS and domain routing are handled by Dokploy — there is no Caddy service in
 | `worker` | No | One replica; CPU-bound ffmpeg encode |
 | `postgres` | No | Volume `postgres_data` |
 | `redis` | No | Queue + rate limit |
-| `minio` | Optional | Local/dev object storage; port `9000` published for browser presign |
-| `minio-init` | No | Creates bucket once |
+| `minio` | Optional | Profile `minio` only; port `9000` for browser presign |
+| `minio-init` | Optional | Profile `minio` only; creates bucket once |
 
 ## Quick start (local)
 
 ```bash
 cp .env.example .env
+# .env.example sets COMPOSE_PROFILES=minio for local object storage
 docker compose up --build
 ```
 
 - UI: `http://localhost:3000`
 - MinIO API: `http://localhost:9000` (must match `S3_PUBLIC_ENDPOINT` for browser uploads)
+- Without `COMPOSE_PROFILES=minio` (or `--profile minio`), MinIO containers are not started
 
 ## Dokploy checklist
 
@@ -52,6 +54,7 @@ docker compose up --build
 | `MAX_UPLOAD_BYTES` | No | Default `209715200` |
 | `API_INTERNAL_URL` | Web | Default `http://api:8080` |
 | `CORS_ORIGINS` | API | Default `*` |
+| `COMPOSE_PROFILES` | No | Set to `minio` for local MinIO; leave empty for R2 |
 
 Full template: [`.env.example`](../.env.example).
 
@@ -59,12 +62,15 @@ Full template: [`.env.example`](../.env.example).
 
 ### Local / MinIO
 
-Compose starts MinIO and creates the bucket via `minio-init`.
+Enable the Compose profile, then start. Compose creates the bucket via `minio-init`.
 
 ```env
+COMPOSE_PROFILES=minio
 S3_ENDPOINT=http://minio:9000
 S3_PUBLIC_ENDPOINT=http://localhost:9000
 ```
+
+Or: `docker compose --profile minio up --build`.
 
 On a remote VPS, `localhost` is wrong for browsers. Either:
 
@@ -73,7 +79,10 @@ On a remote VPS, `localhost` is wrong for browsers. Either:
 
 ### Cloudflare R2 (production)
 
+Do **not** set `COMPOSE_PROFILES=minio` (omit or leave empty). MinIO containers stay off.
+
 ```env
+COMPOSE_PROFILES=
 S3_ENDPOINT=https://<accountid>.r2.cloudflarestorage.com
 S3_PUBLIC_ENDPOINT=https://<accountid>.r2.cloudflarestorage.com
 S3_REGION=auto
@@ -82,8 +91,6 @@ S3_SECRET_KEY=<r2_secret_key>
 S3_FORCE_PATH_STYLE=true
 S3_BUCKET=silence-remover
 ```
-
-You can leave the Compose `minio` services unused, or remove them in a later cleanup.
 
 **CORS:** allow PUT/GET from your web origin on the R2/MinIO bucket so browser uploads succeed.
 
