@@ -1,14 +1,17 @@
-# silence-remover
+# Silence Remover by Puhulab
 
-Local toolkit **and** free web SaaS for tightening voiceovers with [Silero VAD](https://github.com/snakers4/silero-vad) + `ffmpeg`.
+Local toolkit **and** free web SaaS for tightening voiceovers and short videos with [Silero VAD](https://github.com/snakers4/silero-vad) + `ffmpeg`.
+
+**Product:** [silence-remover.puhulab.com](https://silence-remover.puhulab.com) — no account, IP rate limits, audio **and** video.
 
 ```mermaid
 flowchart LR
-  Browser --> Web[Next.js]
+  Browser --> Web[Next.js_PWA]
   Web -->|"internal Docker network"| API[Go_API]
   API --> PG[(Postgres)]
   API --> Redis[(Redis)]
-  API --> S3[R2_or_MinIO]
+  Browser -->|"presigned PUT/GET"| S3[R2_or_MinIO]
+  API --> S3
   Redis --> Worker[Python_Worker]
   Worker --> Core[silence_core]
   Worker --> S3
@@ -21,9 +24,10 @@ flowchart LR
 | [`packages/silence_core/`](packages/silence_core/) | Importable silence-removal library |
 | [`apps/cli/`](apps/cli/) | Local CLIs (`silence_remover.py`, `transcribe.py`) |
 | [`apps/api/`](apps/api/) | Go REST API (jobs, rate limit, presign, queue) — **not public in MVP** |
-| [`apps/worker/`](apps/worker/) | Python worker (Redis queue → silence_core → storage) |
-| [`apps/web/`](apps/web/) | Free Silence Remover by Puhulab UI (no auth / no billing) |
-| [`docker-compose.yml`](docker-compose.yml) | Dokploy-ready stack |
+| [`apps/worker/`](apps/worker/) | Python worker (Redis → silence_core → storage + retention cleanup) |
+| [`apps/web/`](apps/web/) | Silence Remover by Puhulab UI (PWA, compare players, history) |
+| [`design/`](design/) | Generative brand mark (`node design/generate-logo.mjs`) |
+| [`docker-compose.yml`](docker-compose.yml) | Dokploy-ready stack (MinIO behind Compose profile) |
 | [`docs/`](docs/) | Architecture, API, deploy guides |
 
 ## Documentation
@@ -31,8 +35,31 @@ flowchart LR
 | Doc | Contents |
 |-----|----------|
 | [docs/architecture.md](docs/architecture.md) | Monorepo layout, trust boundaries, job lifecycle |
-| [docs/api.md](docs/api.md) | Internal Go `/v1` API, tokens, rate limits, queue |
-| [docs/deploy.md](docs/deploy.md) | Dokploy + Compose, env vars, MinIO/R2 |
+| [docs/api.md](docs/api.md) | Internal Go `/v1` API, tokens, rate limits, queue, preview URLs |
+| [docs/deploy.md](docs/deploy.md) | Dokploy + Compose, env vars, MinIO/R2, CORS, retention, PWA |
+
+---
+
+## Product features (web)
+
+- **Brand:** Silence Remover by Puhulab (logo under `apps/web/public/brand/`, generated from `design/`)
+- **Upload / download:** browser talks to object storage with **presigned URLs** (file bytes do not proxy through the app server)
+- **Before / After:** in-page play of original vs processed; duration stats (`2:15 → 1:40 · 35s shorter`)
+- **Recent files:** `localStorage` keeps job access on this device for **1 day**
+- **Retention:** worker deletes stored objects after **`OBJECT_RETENTION_HOURS`** (default **24**)
+- **Limits:** IP-based — default **10 jobs/day**, **2 concurrent**; max upload **200 MB** (`MAX_UPLOAD_BYTES`)
+- **PWA:** Add to Home Screen (`/manifest.webmanifest`, `/icon-192`, `/icon-512`, `/sw.js`)
+- **Share previews:** Open Graph / Twitter images (`opengraph-image`, `twitter-image`)
+
+Supported media: audio (`.mp3`, `.wav`, `.m4a`, …) and video (`.mp4`, `.mov`, `.mkv`, `.webm`, `.avi`, `.m4v`).
+
+### Upload flow (short)
+
+1. Browser → Next `/api/jobs` → Go creates job + presigned **PUT** URL  
+2. Browser **PUT**s file directly to R2/MinIO  
+3. Browser → complete-upload → Go verifies object, enqueues Redis  
+4. Worker processes → writes output + durations → `completed`  
+5. Browser polls status → preview/download URLs (direct GET from storage)
 
 ---
 
@@ -80,11 +107,11 @@ MVP: **free**, no signup, **IP rate limits**, Go API reachable only from the web
 
 ### Services
 
-- `web` — public (attach Dokploy domain + HTTPS here)
+- `web` — public (Dokploy domain + HTTPS); Next.js + PWA
 - `api` — internal only (do **not** publish a domain)
-- `worker` — internal
+- `worker` — internal (processing + object cleanup)
 - `postgres`, `redis` — internal
-- `minio` / `minio-init` — optional (Compose profile `minio`); use Cloudflare R2 in production without the profile
+- `minio` / `minio-init` — optional Compose profile `minio` (local/dev); prefer **Cloudflare R2** in production
 
 ### Configure
 
@@ -98,13 +125,16 @@ Important env vars:
 | Variable | Purpose |
 |----------|---------|
 | `COMPOSE_PROFILES` | `minio` for local MinIO; empty/omit for R2 |
-| `S3_ENDPOINT` | Server-side S3/R2/MinIO URL (`http://minio:9000` in Compose) |
+| `S3_ENDPOINT` | Server-side S3/R2/MinIO URL |
 | `S3_PUBLIC_ENDPOINT` | Browser-facing URL for presigned PUT/GET |
-| `RATE_LIMIT_JOBS_PER_DAY` | Default `10` |
+| `OBJECT_RETENTION_HOURS` | Default `24` — worker deletes media after this age |
+| `RATE_LIMIT_JOBS_PER_DAY` | Default `10` (per IP, UTC day) |
 | `RATE_LIMIT_MAX_CONCURRENT` | Default `2` |
+| `MAX_UPLOAD_BYTES` | Default `209715200` (200 MB) |
 | `API_INTERNAL_URL` | Web → API (`http://api:8080`) |
+| `NEXT_PUBLIC_SITE_URL` | Public HTTPS origin (Open Graph + PWA) |
 
-### Run
+### Run (local)
 
 ```bash
 # Local with MinIO (.env.example sets COMPOSE_PROFILES=minio)
@@ -113,15 +143,24 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 
 Open `http://localhost:3000`.
 
+`docker-compose.local.yml` publishes host port `3000` — **do not** use it on Dokploy.
+
+### Brand assets
+
+```bash
+node design/generate-logo.mjs --seed 20260720
+# writes design/out/* and apps/web/public/brand/*
+```
+
 ### Dokploy
 
-1. Create an application from this Git repo using Compose (`docker-compose.yml` only — not `docker-compose.local.yml`).
-2. Set env from `.env.example` (prefer Cloudflare R2 in production).
-3. Attach your domain **only** to the `web` service (container port `3000`).
-4. Leave `api` / `worker` / `postgres` / `redis` without public domains.
-5. Set `S3_PUBLIC_ENDPOINT` to a URL the **browser** can reach (not `http://minio:9000`).
+1. Compose app from this repo — **`docker-compose.yml` only** (not `docker-compose.local.yml`).
+2. Env from `.env.example` (prefer Cloudflare R2; leave `COMPOSE_PROFILES` empty).
+3. Domain **only** on `web` (container port `3000`).
+4. Set `NEXT_PUBLIC_SITE_URL` and R2 `S3_*` endpoints the **browser** can reach.
+5. R2 bucket **CORS:** allow `GET`, `PUT`, `HEAD` from your web origin (needed for direct upload, preview, and download).
 
-For R2, set both `S3_ENDPOINT` and `S3_PUBLIC_ENDPOINT` to your R2 S3 API URL and leave `COMPOSE_PROFILES` empty so MinIO is not started.
+Optional R2 lifecycle (1 day) can mirror app retention — see [docs/deploy.md](docs/deploy.md).
 
 ### Go API (internal)
 
@@ -129,7 +168,7 @@ For R2, set both `S3_ENDPOINT` and `S3_PUBLIC_ENDPOINT` to your R2 S3 API URL an
 |--------|------|-------|
 | `POST` | `/v1/jobs` | Create job + presigned upload URL |
 | `POST` | `/v1/jobs/{id}/complete-upload` | Verify upload + enqueue (`X-Job-Token`) |
-| `GET` | `/v1/jobs/{id}` | Status / download URL (`X-Job-Token`) |
+| `GET` | `/v1/jobs/{id}` | Status, durations, preview + download URLs (`X-Job-Token`) |
 | `GET` | `/healthz` | Health |
 
 Public API keys / external access are intentionally deferred.
@@ -143,12 +182,12 @@ silence-remover/
 ├── apps/
 │   ├── api/          # Go
 │   ├── cli/          # Local Python CLIs
-│   ├── worker/       # Python worker
-│   └── web/          # Next.js (Silence Remover by Puhulab)
+│   ├── worker/       # Python worker + retention cleanup
+│   └── web/          # Next.js PWA (Silence Remover by Puhulab)
 ├── packages/
 │   └── silence_core/ # Shared processing library
+├── design/           # Generative logo script + out/
 ├── docs/             # architecture, api, deploy
-├── design/           # generative brand mark (node design/generate-logo.mjs)
 ├── docker-compose.yml
 ├── docker-compose.local.yml  # local host ports only
 ├── .env.example
@@ -163,10 +202,14 @@ silence-remover/
 |---------|-----|
 | `ffmpeg` not found (CLI) | Install ffmpeg (`brew` / `apt`) |
 | `Bind for 0.0.0.0:3000 failed` (Dokploy) | Use `docker-compose.yml` only; do not mount `docker-compose.local.yml` |
-| Upload fails with MinIO | Ensure port `9000` is reachable and `S3_PUBLIC_ENDPOINT` matches the browser host |
-| Rate limit errors | Wait for the daily window or raise `RATE_LIMIT_*` env vars |
+| Upload / preview / download CORS errors | R2 CORS must allow `GET`/`PUT`/`HEAD` from the web origin |
+| Upload fails with MinIO | Port `9000` reachable; `S3_PUBLIC_ENDPOINT` matches browser host; profile `minio` enabled |
+| Rate limit (`429`) | Wait for UTC day window, clear Redis `ratelimit:jobs:*`, or raise `RATE_LIMIT_*` |
+| Same file won’t re-upload | Hard-refresh after deploy (input remount fix); or pick another file |
+| WhatsApp shows wrong logo | Deploy OG routes; scrape again (cache); check `/opengraph-image` |
+| `manifest.json` 404 | Expected if requesting that path — real manifest is `/manifest.webmanifest` |
 | `mlx-whisper` import error | Apple Silicon + Python 3.11; not used by the SaaS worker |
-| Words clipped after cut | Raise `--speech-pad-ms` on CLI / future UI options |
+| Words clipped after cut | Raise `--speech-pad-ms` on CLI |
 
 ---
 
