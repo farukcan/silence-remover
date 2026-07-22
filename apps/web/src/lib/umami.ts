@@ -41,3 +41,30 @@ export function fileExt(name: string): string {
   if (dot < 0 || dot === name.length - 1) return "unknown";
   return name.slice(dot + 1).toLowerCase().slice(0, 16);
 }
+
+/**
+ * Optional duration fields for Umami events (seconds, rounded).
+ * Omits keys when values are missing so early funnel events stay clean.
+ */
+export function durationProps(
+  inputSec?: number | null,
+  outputSec?: number | null,
+): EventData {
+  const data: EventData = {};
+  const inputOk = inputSec != null && Number.isFinite(inputSec) && inputSec >= 0;
+  const outputOk =
+    outputSec != null && Number.isFinite(outputSec) && outputSec >= 0;
+
+  if (inputOk) data.input_sec = Math.round(inputSec);
+  if (outputOk) data.output_sec = Math.round(outputSec);
+
+  if (inputOk && outputOk) {
+    const removed = Math.max(0, inputSec - outputSec);
+    data.removed_sec = Math.round(removed);
+    if (inputSec > 0) {
+      data.removed_pct = Math.round((removed / inputSec) * 100);
+    }
+  }
+
+  return data;
+}

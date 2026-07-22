@@ -8,7 +8,7 @@ import {
   type StoredJob,
   upsertJob,
 } from "@/lib/jobHistory";
-import { fileExt, track } from "@/lib/umami";
+import { durationProps, fileExt, track } from "@/lib/umami";
 
 type JobStatus =
   | "idle"
@@ -272,6 +272,7 @@ export function SilenceUploader() {
             track("job_completed", {
               file_ext: fileExt(filename),
               is_video: isVideoFilename(filename),
+              ...durationProps(data.input_duration_sec, data.output_duration_sec),
             });
           }
           return;
@@ -458,6 +459,7 @@ export function SilenceUploader() {
         is_video: isVideoFilename(
           data.original_filename || compare?.filename || "file",
         ),
+        ...durationProps(data.input_duration_sec, data.output_duration_sec),
       });
       await downloadFromR2(
         data.download_url,
@@ -528,6 +530,7 @@ export function SilenceUploader() {
       track("history_opened", {
         file_ext: fileExt(next.filename),
         is_video: next.isVideo,
+        ...durationProps(next.inputSec, next.outputSec),
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn’t open this file.");
@@ -554,6 +557,7 @@ export function SilenceUploader() {
       which,
       file_ext: fileExt(compare.filename),
       is_video: compare.isVideo,
+      ...durationProps(compare.inputSec, compare.outputSec),
     });
   }
 
