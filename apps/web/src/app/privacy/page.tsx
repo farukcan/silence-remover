@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <LegalShell title="Privacy Policy" updated="July 20, 2026">
+    <LegalShell title="Privacy Policy" updated="July 23, 2026">
       <div className="legal__callout">
         <strong>Privacy-first, no accounts.</strong> Silence Remover does not
         require signup. Media you upload is processed to remove quiet gaps,
@@ -129,6 +129,10 @@ export default function PrivacyPage() {
           as upload started or download) via self-hosted Umami — no account
           identity, and no filenames or job tokens in analytics payloads
         </li>
+        <li>
+          Error reports via self-hosted Bugsink when something breaks (may
+          include IP, user agent, and technical request details)
+        </li>
       </ul>
       <p>
         We do not collect payment information, and we do not require your name
@@ -193,6 +197,12 @@ export default function PrivacyPage() {
           <a href="https://umami.puhulab.com">umami.puhulab.com</a>) — page
           views and anonymized usage events to understand how the Service is
           used. Umami does not use cookies for visitor identity
+        </li>
+        <li>
+          <strong>Bugsink</strong> (self-hosted error tracking at{" "}
+          <a href="https://localhost">localhost</a>) —
+          application errors from the web app, API, and worker. May include IP
+          address, user agent, and request metadata useful for debugging
         </li>
       </ul>
       <p>

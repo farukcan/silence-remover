@@ -136,6 +136,8 @@ Important env vars:
 | `NEXT_PUBLIC_SITE_URL` | Public HTTPS origin (Open Graph + PWA) |
 | `NEXT_PUBLIC_UMAMI_URL` | Umami origin (build-time; omit locally to disable) |
 | `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Umami website ID (build-time; both Umami vars required) |
+| `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` | Bugsink error tracking (Sentry-compatible) |
+| `SENTRY_ENVIRONMENT` | e.g. `production` |
 
 ### Run (local)
 

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 	"github.com/farukcan/silence-remover/apps/api/internal/queue"
 	"github.com/farukcan/silence-remover/apps/api/internal/ratelimit"
 	"github.com/farukcan/silence-remover/apps/api/internal/storage"
+	"github.com/getsentry/sentry-go"
+	sentryhttp "github.com/getsentry/sentry-go/http"
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -29,6 +32,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("config: %v", err)
 	}
+
+	if err := initSentry(); err != nil {
+		log.Printf("sentry: init skipped: %v", err)
+	}
+	defer sentry.Flush(2 * time.Second)
 
 	ctx := context.Background()
 	store, err := db.Connect(ctx, cfg.DatabaseURL)
@@ -60,10 +68,15 @@ func main() {
 		Storage: s3Client,
 	}
 
+	sentryHandler := sentryhttp.New(sentryhttp.Options{
+		Repanic: true,
+	})
+
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
 	r.Use(chimw.RealIP)
 	r.Use(chimw.Logger)
+	r.Use(sentryHandler.Handle)
 	r.Use(chimw.Recoverer)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.CORSOrigins,
@@ -100,4 +113,28 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_ = server.Shutdown(shutdownCtx)
+}
+
+func initSentry() error {
+	if os.Getenv("SENTRY_DISABLED") == "1" {
+		return nil
+	}
+	dsn := strings.TrimSpace(os.Getenv("SENTRY_DSN"))
+	if dsn == "" {
+		return nil
+	}
+	env := strings.TrimSpace(os.Getenv("SENTRY_ENVIRONMENT"))
+	if env == "" {
+		env = "production"
+	}
+	return sentry.Init(sentry.ClientOptions{
+		Dsn:              dsn,
+		Environment:      env,
+		SendDefaultPII:   true,
+		EnableTracing:    false,
+		AttachStacktrace: true,
+		Tags: map[string]string{
+			"service": "api",
+		},
+	})
 }

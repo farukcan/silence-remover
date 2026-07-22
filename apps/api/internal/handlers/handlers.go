@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/farukcan/silence-remover/apps/api/internal/queue"
 	"github.com/farukcan/silence-remover/apps/api/internal/ratelimit"
 	"github.com/farukcan/silence-remover/apps/api/internal/storage"
+	"github.com/getsentry/sentry-go"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -294,5 +296,12 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 }
 
 func writeError(w http.ResponseWriter, status int, msg string) {
+	if status >= 500 {
+		sentry.WithScope(func(scope *sentry.Scope) {
+			scope.SetTag("http.status_code", strconv.Itoa(status))
+			scope.SetLevel(sentry.LevelError)
+			sentry.CaptureMessage(msg)
+		})
+	}
 	writeJSON(w, status, map[string]string{"error": msg})
 }

@@ -79,6 +79,9 @@ services:
       RATE_LIMIT_MAX_CONCURRENT: ${RATE_LIMIT_MAX_CONCURRENT:-2}
       MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-209715200}
       CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+      SENTRY_DISABLED: ${SENTRY_DISABLED:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -105,6 +108,9 @@ services:
       S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
       OBJECT_RETENTION_HOURS: ${OBJECT_RETENTION_HOURS:-24}
       CLEANUP_INTERVAL_SEC: ${CLEANUP_INTERVAL_SEC:-900}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+      SENTRY_DISABLED: ${SENTRY_DISABLED:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -122,11 +128,18 @@ services:
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://silence-remover.puhulab.com}
         NEXT_PUBLIC_UMAMI_URL: ${NEXT_PUBLIC_UMAMI_URL:-}
         NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+        NEXT_PUBLIC_SENTRY_DISABLED: ${NEXT_PUBLIC_SENTRY_DISABLED:-}
     environment:
       API_INTERNAL_URL: http://api:8080
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://silence-remover.puhulab.com}
       NEXT_PUBLIC_UMAMI_URL: ${NEXT_PUBLIC_UMAMI_URL:-}
       NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+      SENTRY_DISABLED: ${SENTRY_DISABLED:-}
+      NEXT_PUBLIC_SENTRY_DISABLED: ${NEXT_PUBLIC_SENTRY_DISABLED:-}
     depends_on:
       - api
     # No host port bind — Dokploy proxies to container port 3000.

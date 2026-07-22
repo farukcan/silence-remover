@@ -13,12 +13,31 @@ from pathlib import Path
 import boto3
 import psycopg
 import redis
+import sentry_sdk
 from botocore.config import Config as BotoConfig
 from botocore.exceptions import ClientError
 from silence_core import SilenceRemoverError, process_file
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("worker")
+
+
+def init_sentry() -> None:
+    if os.getenv("SENTRY_DISABLED", "").strip() == "1":
+        return
+    dsn = (os.getenv("SENTRY_DSN") or "").strip()
+    if not dsn:
+        return
+    sentry_sdk.init(
+        dsn=dsn,
+        environment=(os.getenv("SENTRY_ENVIRONMENT") or "production").strip(),
+        send_default_pii=True,
+        traces_sample_rate=0.0,
+    )
+    sentry_sdk.set_tag("service", "worker")
+
+
+init_sentry()
 
 QUEUE_KEY = os.getenv("QUEUE_KEY", "jobs:silence")
 DATABASE_URL = os.environ["DATABASE_URL"]
@@ -183,6 +202,7 @@ def process_job(conn: psycopg.Connection, s3, payload: dict) -> None:
                 completed=True,
             )
             log.warning("job %s upload failed: %s", job_id, exc)
+            sentry_sdk.capture_exception(exc)
             return
 
         update_status(
@@ -228,6 +248,7 @@ def main() -> None:
                     cleanup_expired_objects(conn, s3)
             except Exception:
                 log.exception("storage cleanup failed")
+                sentry_sdk.capture_exception()
             last_cleanup = now
 
         try:
@@ -237,6 +258,7 @@ def main() -> None:
             continue
         except redis.ConnectionError:
             log.exception("redis connection lost; retrying")
+            sentry_sdk.capture_exception()
             time.sleep(1)
             continue
         if not item:
@@ -253,6 +275,7 @@ def main() -> None:
                 process_job(conn, s3, payload)
         except Exception:
             log.exception("unexpected worker error for payload %s", payload)
+            sentry_sdk.capture_exception()
             try:
                 with psycopg.connect(DATABASE_URL) as conn:
                     update_status(
@@ -264,6 +287,7 @@ def main() -> None:
                     )
             except Exception:
                 log.exception("failed to mark job as failed")
+                sentry_sdk.capture_exception()
             time.sleep(1)
 
 

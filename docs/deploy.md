@@ -39,9 +39,10 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 5. Set `API_INTERNAL_URL=http://api:8080` (Compose DNS name).
 6. Set `NEXT_PUBLIC_SITE_URL` to the public HTTPS origin (needed for Open Graph + PWA).
 7. Set `NEXT_PUBLIC_UMAMI_URL` and `NEXT_PUBLIC_UMAMI_WEBSITE_ID` in Dokploy (no trailing spaces). Rebuild `web` after changes.
-8. Configure object storage (prefer R2 in production — see below).
-9. Confirm `S3_PUBLIC_ENDPOINT` is reachable from end-user browsers.
-10. Deploy and hit `/` then run a short audio job end-to-end.
+8. Set `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` in Dokploy to your Bugsink DSN (e.g. `https://…@bugsink.puhulab.com/1`). Rebuild `web` after changing the public DSN. Omit both (or set `SENTRY_DISABLED=1` / `NEXT_PUBLIC_SENTRY_DISABLED=1`) to disable.
+9. Configure object storage (prefer R2 in production — see below).
+10. Confirm `S3_PUBLIC_ENDPOINT` is reachable from end-user browsers.
+11. Deploy and hit `/` then run a short audio job end-to-end.
 
 PWA / home screen: after deploy, open the site in mobile Safari or Chrome → Share / Install → Add to Home Screen. Manifest is at `/manifest.webmanifest`; icons at `/icon-192` and `/icon-512`.
 
@@ -64,6 +65,11 @@ PWA / home screen: after deploy, open the site in mobile Safari or Chrome → Sh
 | `NEXT_PUBLIC_UMAMI_URL` | Web (prod) | Umami origin, e.g. `https://umami.puhulab.com` (defaults in code if unset) |
 | `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Web (prod) | Umami website ID (defaults in code if unset) |
 | `NEXT_PUBLIC_UMAMI_DISABLED` | Web | Set to `1` to disable the tracker (useful locally) |
+| `SENTRY_DSN` | API / worker / web | Bugsink DSN (Sentry-compatible); empty = disabled |
+| `NEXT_PUBLIC_SENTRY_DSN` | Web (build) | Browser SDK DSN — rebuild `web` after changes |
+| `SENTRY_ENVIRONMENT` | All | e.g. `production` / `staging` |
+| `SENTRY_DISABLED` | API / worker / web server | Set to `1` to disable server SDKs |
+| `NEXT_PUBLIC_SENTRY_DISABLED` | Web (build) | Set to `1` to disable browser SDK |
 | `CORS_ORIGINS` | API | Default `*` |
 | `COMPOSE_PROFILES` | No | Set to `minio` for local MinIO; leave empty for R2 |
 | `OBJECT_RETENTION_HOURS` | No | Default `24` — worker deletes media after this age |
