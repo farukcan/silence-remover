@@ -92,7 +92,6 @@ export default function RootLayout({
             defer
             src={`${umamiUrl}/script.js`}
             data-website-id={umamiWebsiteId}
-            data-do-not-track="true"
           />
         ) : null}
       </head>

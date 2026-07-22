@@ -192,8 +192,7 @@ export default function PrivacyPage() {
           <strong>Umami</strong> (self-hosted at{" "}
           <a href="https://umami.puhulab.com">umami.puhulab.com</a>) — page
           views and anonymized usage events to understand how the Service is
-          used. Umami does not use cookies for visitor identity and respects Do
-          Not Track where supported by the tracker
+          used. Umami does not use cookies for visitor identity
         </li>
       </ul>
       <p>
