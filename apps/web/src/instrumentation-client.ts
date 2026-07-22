@@ -1,9 +1,13 @@
 import * as Sentry from "@sentry/nextjs";
-import { sentrySharedOptions } from "./lib/sentry";
+import { resolveSentryDsn, sentrySharedOptions } from "./lib/sentry";
 
-Sentry.init({
-  ...sentrySharedOptions(),
-  initialScope: {
-    tags: { service: "web-client" },
-  },
-});
+const dsn = resolveSentryDsn();
+if (dsn) {
+  Sentry.init({
+    ...sentrySharedOptions(),
+    dsn,
+    initialScope: {
+      tags: { service: "web-client" },
+    },
+  });
+}

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { BugsinkSmokeTest } from "@/components/BugsinkSmokeTest";
 import { SilenceUploader } from "@/components/SilenceUploader";
 
 const bars = [32, 58, 38, 82, 48, 96, 52, 76, 34, 90, 44, 70, 28, 80, 40, 100, 54, 72];
@@ -42,6 +44,9 @@ export default function HomePage() {
       </section>
 
       <SilenceUploader />
+      <Suspense fallback={null}>
+        <BugsinkSmokeTest />
+      </Suspense>
 
       <footer className="footer">
         <nav className="footer__links" aria-label="Legal">
