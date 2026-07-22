@@ -70,6 +70,16 @@ PWA / home screen: after deploy, open the site in mobile Safari or Chrome → Sh
 | `SENTRY_ENVIRONMENT` | All | e.g. `production` / `staging` |
 | `SENTRY_DISABLED` | API / worker / web server | Set to `1` to disable server SDKs |
 | `NEXT_PUBLIC_SENTRY_DISABLED` | Web (build) | Set to `1` to disable browser SDK |
+| `BUGSINK_TEST_TOKEN` | API / worker | Enables chain smoke test; must match `/?bugsink_test=<token>` |
+| `WORKER_DEBUG_URL` | API | Worker smoke URL (default `http://worker:8081`) |
+
+Bugsink chain smoke test (one click from the public site):
+
+1. Set `BUGSINK_TEST_TOKEN`, `SENTRY_DSN`, and `NEXT_PUBLIC_SENTRY_DSN`; rebuild `web`.
+2. Open `https://silence-remover.puhulab.com/?bugsink_test=<token>`
+3. Click **Send Bugsink chain test**
+
+Flow: browser → Next BFF → API → worker error → API error → frontend error. Check Bugsink Issues for three events (`worker`, `api`, `web-client`).
 | `CORS_ORIGINS` | API | Default `*` |
 | `COMPOSE_PROFILES` | No | Set to `minio` for local MinIO; leave empty for R2 |
 | `OBJECT_RETENTION_HOURS` | No | Default `24` — worker deletes media after this age |

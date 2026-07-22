@@ -82,6 +82,8 @@ services:
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
       SENTRY_DISABLED: ${SENTRY_DISABLED:-}
+      BUGSINK_TEST_TOKEN: ${BUGSINK_TEST_TOKEN:-}
+      WORKER_DEBUG_URL: ${WORKER_DEBUG_URL:-http://worker:8081}
     depends_on:
       postgres:
         condition: service_healthy
@@ -111,6 +113,8 @@ services:
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
       SENTRY_DISABLED: ${SENTRY_DISABLED:-}
+      BUGSINK_TEST_TOKEN: ${BUGSINK_TEST_TOKEN:-}
+      WORKER_DEBUG_ADDR: ${WORKER_DEBUG_ADDR:-0.0.0.0:8081}
     depends_on:
       postgres:
         condition: service_healthy
@@ -118,6 +122,9 @@ services:
         condition: service_healthy
       api:
         condition: service_started
+    # Debug HTTP only on Docker network (no host publish).
+    expose:
+      - "8081"
     restart: unless-stopped
 
   web:

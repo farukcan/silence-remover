@@ -3,12 +3,16 @@
 
 from __future__ import annotations
 
+import hmac
 import json
 import logging
 import os
 import tempfile
+import threading
 import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import boto3
 import psycopg
@@ -56,6 +60,9 @@ BRPOP_TIMEOUT = int(os.getenv("BRPOP_TIMEOUT", "5"))
 # How long uploaded/processed objects are kept in object storage.
 OBJECT_RETENTION_HOURS = int(os.getenv("OBJECT_RETENTION_HOURS", "24"))
 CLEANUP_INTERVAL_SEC = int(os.getenv("CLEANUP_INTERVAL_SEC", "900"))
+BUGSINK_TEST_TOKEN = (os.getenv("BUGSINK_TEST_TOKEN") or "").strip()
+# Internal-only debug HTTP (Docker network). Empty token disables the server.
+WORKER_DEBUG_ADDR = (os.getenv("WORKER_DEBUG_ADDR") or "0.0.0.0:8081").strip()
 
 
 def s3_client():
@@ -221,7 +228,44 @@ def process_job(conn: psycopg.Connection, s3, payload: dict) -> None:
         )
 
 
+def start_bugsink_test_server() -> None:
+    """Hidden smoke-test HTTP endpoint; only runs when BUGSINK_TEST_TOKEN is set."""
+    if not BUGSINK_TEST_TOKEN:
+        return
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, fmt: str, *args) -> None:  # noqa: A003
+            return
+
+        def do_GET(self) -> None:  # noqa: N802
+            parsed = urlparse(self.path)
+            if parsed.path != "/__bugsink_test":
+                self.send_response(404)
+                self.end_headers()
+                return
+            token = (parse_qs(parsed.query).get("token") or [""])[0]
+            if not hmac.compare_digest(token, BUGSINK_TEST_TOKEN):
+                self.send_response(404)
+                self.end_headers()
+                return
+            sentry_sdk.capture_exception(RuntimeError("Bugsink worker smoke test"))
+            sentry_sdk.flush(timeout=2)
+            body = b'{"status":"sent","service":"worker"}\n'
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    host, _, port_s = WORKER_DEBUG_ADDR.rpartition(":")
+    server = ThreadingHTTPServer((host or "0.0.0.0", int(port_s or "8081")), Handler)
+    thread = threading.Thread(target=server.serve_forever, name="bugsink-test", daemon=True)
+    thread.start()
+    log.info("bugsink test endpoint on http://%s/__bugsink_test?token=…", WORKER_DEBUG_ADDR)
+
+
 def main() -> None:
+    start_bugsink_test_server()
     # socket_timeout must exceed BRPOP_TIMEOUT so an empty-queue nil reply
     # is not raced by the client socket timeout (redis-py quirk).
     rdb = redis.Redis.from_url(

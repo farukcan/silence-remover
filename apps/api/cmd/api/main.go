@@ -88,6 +88,7 @@ func main() {
 
 	r.Get("/healthz", api.Healthz)
 	r.Route("/v1", func(r chi.Router) {
+		r.Get("/__bugsink_test", api.BugsinkTest)
 		r.Post("/jobs", api.CreateJob)
 		r.Post("/jobs/{id}/complete-upload", api.CompleteUpload)
 		r.Get("/jobs/{id}", api.GetJob)

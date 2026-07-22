@@ -1,11 +1,16 @@
 package handlers
 
 import (
+	"context"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -58,6 +63,41 @@ type jobResponse struct {
 
 func (a *API) Healthz(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// BugsinkTest asks the worker to emit an error, then emits an API error.
+// Query: ?token=<BUGSINK_TEST_TOKEN>. Wrong/missing token → 404.
+func (a *API) BugsinkTest(w http.ResponseWriter, r *http.Request) {
+	expected := strings.TrimSpace(a.Cfg.BugsinkTestToken)
+	got := strings.TrimSpace(r.URL.Query().Get("token"))
+	if expected == "" || len(got) != len(expected) ||
+		subtle.ConstantTimeCompare([]byte(got), []byte(expected)) != 1 {
+		http.NotFound(w, r)
+		return
+	}
+
+	workerOK := false
+	workerURL := a.Cfg.WorkerDebugURL + "/__bugsink_test?token=" + url.QueryEscape(got)
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, workerURL, nil)
+	if err == nil {
+		res, doErr := http.DefaultClient.Do(req)
+		if doErr == nil {
+			workerOK = res.StatusCode == http.StatusOK
+			_, _ = io.Copy(io.Discard, res.Body)
+			_ = res.Body.Close()
+		}
+	}
+
+	sentry.CaptureException(fmt.Errorf("Bugsink api smoke test"))
+	_ = sentry.Flush(2 * time.Second)
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":    "sent",
+		"service":   "api",
+		"worker_ok": workerOK,
+	})
 }
 
 func (a *API) CreateJob(w http.ResponseWriter, r *http.Request) {

@@ -25,8 +25,10 @@ type Config struct {
 	MaxUploadBytes  int64
 	UploadURLTTL    time.Duration
 	DownloadURLTTL  time.Duration
-	TrustedProxies  []string
-	CORSOrigins     []string
+	TrustedProxies   []string
+	CORSOrigins      []string
+	BugsinkTestToken string
+	WorkerDebugURL   string
 }
 
 func Load() (Config, error) {
@@ -49,6 +51,8 @@ func Load() (Config, error) {
 		DownloadURLTTL:   time.Duration(envInt("DOWNLOAD_URL_TTL_SEC", 3600)) * time.Second,
 		TrustedProxies:   splitCSV(env("TRUSTED_PROXIES", "")),
 		CORSOrigins:      splitCSV(env("CORS_ORIGINS", "*")),
+		BugsinkTestToken: env("BUGSINK_TEST_TOKEN", ""),
+		WorkerDebugURL:   strings.TrimRight(env("WORKER_DEBUG_URL", "http://worker:8081"), "/"),
 	}
 
 	if cfg.DatabaseURL == "" {
