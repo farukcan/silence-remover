@@ -1,28 +1,36 @@
 "use client";
 
-import Script from "next/script";
+import { useEffect } from "react";
 import { flushUmamiQueue } from "@/lib/umami";
 
 /**
- * Loads the Umami tracker when both public env vars are set.
- * Omit them locally to keep development traffic out of analytics.
- * NEXT_PUBLIC_* must be present at Docker image build time.
+ * Flushes queued custom events once the Umami tracker attaches to window.
+ * The tracker itself must be a parser-inserted <script defer> (see layout)
+ * because Umami reads document.currentScript — next/script breaks that.
  */
-export function UmamiAnalytics() {
-  const websiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID?.trim();
-  const baseUrl = process.env.NEXT_PUBLIC_UMAMI_URL?.replace(/\/$/, "").trim();
+export function UmamiReady() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
 
-  if (!websiteId || !baseUrl) {
-    return null;
-  }
+    if (window.umami) {
+      flushUmamiQueue();
+      return;
+    }
 
-  return (
-    <Script
-      src={`${baseUrl}/script.js`}
-      data-website-id={websiteId}
-      data-do-not-track="true"
-      strategy="afterInteractive"
-      onLoad={flushUmamiQueue}
-    />
-  );
+    const started = Date.now();
+    const id = window.setInterval(() => {
+      if (window.umami) {
+        flushUmamiQueue();
+        window.clearInterval(id);
+        return;
+      }
+      if (Date.now() - started > 15_000) {
+        window.clearInterval(id);
+      }
+    }, 50);
+
+    return () => window.clearInterval(id);
+  }, []);
+
+  return null;
 }

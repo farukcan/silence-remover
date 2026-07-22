@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo_Black, Figtree } from "next/font/google";
 import { PwaRegister } from "@/components/PwaRegister";
-import { UmamiAnalytics } from "@/components/UmamiAnalytics";
+import { UmamiReady } from "@/components/UmamiAnalytics";
 import "./globals.css";
 
 const display = Archivo_Black({
@@ -18,6 +18,16 @@ const body = Figtree({
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
   "https://silence-remover.puhulab.com";
+
+/** Public tracker config — inlined at build; disable with NEXT_PUBLIC_UMAMI_DISABLED=1 */
+const umamiDisabled = process.env.NEXT_PUBLIC_UMAMI_DISABLED === "1";
+const umamiUrl =
+  process.env.NEXT_PUBLIC_UMAMI_URL?.replace(/\/$/, "").trim() ||
+  "https://umami.puhulab.com";
+const umamiWebsiteId =
+  process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID?.trim() ||
+  "c7dec9db-2640-478b-8a56-ae99633c31df";
+const umamiEnabled = !umamiDisabled && Boolean(umamiUrl && umamiWebsiteId);
 
 const title = "Silence Remover by Puhulab";
 const description =
@@ -68,10 +78,25 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/*
+          Native defer script (not next/script): Umami reads document.currentScript
+          for data-website-id; dynamically injected scripts leave it null and never
+          attach window.umami.
+        */}
+        {umamiEnabled ? (
+          <script
+            defer
+            src={`${umamiUrl}/script.js`}
+            data-website-id={umamiWebsiteId}
+            data-do-not-track="true"
+          />
+        ) : null}
+      </head>
       <body className={`${display.variable} ${body.variable} antialiased`}>
         {children}
         <PwaRegister />
-        <UmamiAnalytics />
+        {umamiEnabled ? <UmamiReady /> : null}
       </body>
     </html>
   );

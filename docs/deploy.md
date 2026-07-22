@@ -61,16 +61,19 @@ PWA / home screen: after deploy, open the site in mobile Safari or Chrome → Sh
 | `MAX_UPLOAD_BYTES` | No | Default `209715200` |
 | `API_INTERNAL_URL` | Web | Default `http://api:8080` |
 | `NEXT_PUBLIC_SITE_URL` | Web | Absolute site origin for Open Graph / WhatsApp / PWA |
-| `NEXT_PUBLIC_UMAMI_URL` | Web (prod) | Umami origin, e.g. `https://umami.puhulab.com` — omit locally to disable |
-| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Web (prod) | Umami website ID — both Umami vars required for the tracker script |
-
-`NEXT_PUBLIC_*` values are baked into the Next.js image at **build** time. After changing Umami (or site URL) env vars in Dokploy, rebuild/redeploy the `web` service so the tracker script is included.
+| `NEXT_PUBLIC_UMAMI_URL` | Web (prod) | Umami origin, e.g. `https://umami.puhulab.com` (defaults in code if unset) |
+| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Web (prod) | Umami website ID (defaults in code if unset) |
+| `NEXT_PUBLIC_UMAMI_DISABLED` | Web | Set to `1` to disable the tracker (useful locally) |
 | `CORS_ORIGINS` | API | Default `*` |
 | `COMPOSE_PROFILES` | No | Set to `minio` for local MinIO; leave empty for R2 |
 | `OBJECT_RETENTION_HOURS` | No | Default `24` — worker deletes media after this age |
 | `CLEANUP_INTERVAL_SEC` | No | Default `900` — cleanup poll interval |
 
 Full template: [`.env.example`](../.env.example).
+
+`NEXT_PUBLIC_*` values are baked into the Next.js image at **build** time. After changing Umami (or site URL) env vars in Dokploy, rebuild/redeploy the `web` service.
+
+The tracker must be a native `<script defer>` in the document (not `next/script`). Umami reads `document.currentScript`; dynamically injected scripts never set `window.umami`.
 
 ## Object storage
 
