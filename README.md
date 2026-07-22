@@ -134,6 +134,8 @@ Important env vars:
 | `MAX_UPLOAD_BYTES` | Default `209715200` (200 MB) |
 | `API_INTERNAL_URL` | Web → API (`http://api:8080`) |
 | `NEXT_PUBLIC_SITE_URL` | Public HTTPS origin (Open Graph + PWA) |
+| `NEXT_PUBLIC_UMAMI_URL` | Umami origin (build-time; omit locally to disable) |
+| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Umami website ID (build-time; both Umami vars required) |
 
 ### Run (local)
 
@@ -158,7 +160,7 @@ node design/generate-logo.mjs --seed 20260720
 1. Compose app from this repo — **`docker-compose.yml` only** (not `docker-compose.local.yml`).
 2. Env from `.env.example` (prefer Cloudflare R2; leave `COMPOSE_PROFILES` empty).
 3. Domain **only** on `web` (container port `3000`).
-4. Set `NEXT_PUBLIC_SITE_URL` and R2 `S3_*` endpoints the **browser** can reach.
+4. Set `NEXT_PUBLIC_SITE_URL`, Umami `NEXT_PUBLIC_UMAMI_*`, and R2 `S3_*` endpoints the **browser** can reach. Rebuild `web` after changing any `NEXT_PUBLIC_*` value.
 5. R2 bucket **CORS:** allow `GET`, `PUT`, `HEAD` from your web origin (needed for direct upload, preview, and download).
 
 Optional R2 lifecycle (1 day) can mirror app retention — see [docs/deploy.md](docs/deploy.md).

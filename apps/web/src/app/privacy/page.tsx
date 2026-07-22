@@ -124,6 +124,11 @@ export default function PrivacyPage() {
           Optional browser storage on your device (job id/token history for up
           to about one day)
         </li>
+        <li>
+          Privacy-friendly analytics events (page views and product actions such
+          as upload started or download) via self-hosted Umami — no account
+          identity, and no filenames or job tokens in analytics payloads
+        </li>
       </ul>
       <p>
         We do not collect payment information, and we do not require your name
@@ -182,6 +187,13 @@ export default function PrivacyPage() {
         <li>
           <strong>Hosting / VPS providers</strong> running our web, API, worker,
           database, and queue containers
+        </li>
+        <li>
+          <strong>Umami</strong> (self-hosted at{" "}
+          <a href="https://umami.puhulab.com">umami.puhulab.com</a>) — page
+          views and anonymized usage events to understand how the Service is
+          used. Umami does not use cookies for visitor identity and respects Do
+          Not Track where supported by the tracker
         </li>
       </ul>
       <p>

@@ -20,7 +20,9 @@ export async function POST(request: Request) {
     return NextResponse.json(job, { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "failed to create job";
-    const status = message.includes("limit") ? 429 : 500;
+    const lower = message.toLowerCase();
+    const status =
+      lower.includes("limit") || lower.includes("concurrent") ? 429 : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }

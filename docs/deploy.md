@@ -38,9 +38,10 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 4. Do **not** add `docker-compose.local.yml` on Dokploy (it binds host `:3000`).
 5. Set `API_INTERNAL_URL=http://api:8080` (Compose DNS name).
 6. Set `NEXT_PUBLIC_SITE_URL` to the public HTTPS origin (needed for Open Graph + PWA).
-7. Configure object storage (prefer R2 in production — see below).
-8. Confirm `S3_PUBLIC_ENDPOINT` is reachable from end-user browsers.
-9. Deploy and hit `/` then run a short audio job end-to-end.
+7. Set `NEXT_PUBLIC_UMAMI_URL` and `NEXT_PUBLIC_UMAMI_WEBSITE_ID` in Dokploy (production analytics).
+8. Configure object storage (prefer R2 in production — see below).
+9. Confirm `S3_PUBLIC_ENDPOINT` is reachable from end-user browsers.
+10. Deploy and hit `/` then run a short audio job end-to-end.
 
 PWA / home screen: after deploy, open the site in mobile Safari or Chrome → Share / Install → Add to Home Screen. Manifest is at `/manifest.webmanifest`; icons at `/icon-192` and `/icon-512`.
 
@@ -60,6 +61,10 @@ PWA / home screen: after deploy, open the site in mobile Safari or Chrome → Sh
 | `MAX_UPLOAD_BYTES` | No | Default `209715200` |
 | `API_INTERNAL_URL` | Web | Default `http://api:8080` |
 | `NEXT_PUBLIC_SITE_URL` | Web | Absolute site origin for Open Graph / WhatsApp / PWA |
+| `NEXT_PUBLIC_UMAMI_URL` | Web (prod) | Umami origin, e.g. `https://umami.puhulab.com` — omit locally to disable |
+| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Web (prod) | Umami website ID — both Umami vars required for the tracker script |
+
+`NEXT_PUBLIC_*` values are baked into the Next.js image at **build** time. After changing Umami (or site URL) env vars in Dokploy, rebuild/redeploy the `web` service so the tracker script is included.
 | `CORS_ORIGINS` | API | Default `*` |
 | `COMPOSE_PROFILES` | No | Set to `minio` for local MinIO; leave empty for R2 |
 | `OBJECT_RETENTION_HOURS` | No | Default `24` — worker deletes media after this age |

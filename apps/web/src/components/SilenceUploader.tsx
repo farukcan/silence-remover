@@ -8,6 +8,7 @@ import {
   type StoredJob,
   upsertJob,
 } from "@/lib/jobHistory";
+import { fileExt, track } from "@/lib/umami";
 
 type JobStatus =
   | "idle"
@@ -90,6 +91,18 @@ function isVideoFilename(name: string): boolean {
   return VIDEO_EXT.has(name.slice(dot).toLowerCase());
 }
 
+/** Classify create-job rate limit errors (daily vs concurrent). */
+function rateLimitKind(
+  message: string,
+  status?: number,
+): "daily" | "concurrent" | null {
+  const lower = message.toLowerCase();
+  if (lower.includes("concurrent")) return "concurrent";
+  if (lower.includes("daily") || lower.includes("limit reached")) return "daily";
+  if (status === 429) return "daily";
+  return null;
+}
+
 function formatDuration(sec: number): string {
   if (!Number.isFinite(sec) || sec < 0) return "—";
   const total = Math.round(sec);
@@ -159,6 +172,10 @@ export function SilenceUploader() {
   const [historyReady, setHistoryReady] = useState(false);
   const [compare, setCompare] = useState<CompareState | null>(null);
   const [inputKey, setInputKey] = useState(0);
+  /** Avoid duplicate Umami outcome events when overlapping poll ticks finish. */
+  const trackedOutcomeRef = useRef<string | null>(null);
+  /** One preview_played per job+pane (avoids play/pause spam). */
+  const trackedPreviewRef = useRef<Set<string>>(new Set());
 
   const statusLabel = useMemo(() => friendlyStatus(status), [status]);
 
@@ -250,6 +267,13 @@ export function SilenceUploader() {
               downloadable,
             }),
           );
+          if (downloadable && trackedOutcomeRef.current !== `completed:${jobId}`) {
+            trackedOutcomeRef.current = `completed:${jobId}`;
+            track("job_completed", {
+              file_ext: fileExt(filename),
+              is_video: isVideoFilename(filename),
+            });
+          }
           return;
         }
         if (data.status === "failed") {
@@ -266,6 +290,13 @@ export function SilenceUploader() {
               downloadable: false,
             }),
           );
+          if (trackedOutcomeRef.current !== `failed:${jobId}`) {
+            trackedOutcomeRef.current = `failed:${jobId}`;
+            track("job_failed", {
+              reason: "processing",
+              file_ext: fileExt(filename),
+            });
+          }
           return;
         }
         const nextStatus =
@@ -288,6 +319,10 @@ export function SilenceUploader() {
           setError(
             err instanceof Error ? err.message : "Something went wrong. Try again.",
           );
+          if (trackedOutcomeRef.current !== `failed:${jobId}`) {
+            trackedOutcomeRef.current = `failed:${jobId}`;
+            track("job_failed", { reason: "poll" });
+          }
         }
       }
     };
@@ -307,6 +342,15 @@ export function SilenceUploader() {
     setCompare(null);
     setJobId(null);
     setStatus("creating");
+    trackedOutcomeRef.current = null;
+    trackedPreviewRef.current = new Set();
+
+    const ext = fileExt(selected.name);
+    const isVideo = isVideoFilename(selected.name);
+    track("upload_started", {
+      file_ext: ext,
+      is_video: isVideo,
+    });
 
     try {
       const createRes = await fetch("/api/jobs", {
@@ -321,7 +365,16 @@ export function SilenceUploader() {
         error?: string;
       };
       if (!createRes.ok) {
-        throw new Error(created.error ?? "Couldn’t start. Try again.");
+        const message = created.error ?? "Couldn’t start. Try again.";
+        const kind = rateLimitKind(message, createRes.status);
+        if (kind) {
+          track("rate_limit_hit", { kind });
+          setStatus("failed");
+          setError(message);
+          track("job_failed", { reason: "rate_limit", file_ext: ext });
+          return;
+        }
+        throw new Error(message);
       }
 
       const createdAt = new Date().toISOString();
@@ -369,9 +422,11 @@ export function SilenceUploader() {
         }),
       );
       setStatus("queued");
+      track("job_queued", { file_ext: ext, is_video: isVideo });
     } catch (err) {
       setStatus("failed");
       setError(err instanceof Error ? err.message : "Something went wrong");
+      track("job_failed", { reason: "upload", file_ext: ext });
     }
   }
 
@@ -398,6 +453,12 @@ export function SilenceUploader() {
       }
       const next = compareFromJob(data, data.original_filename || compare?.filename || "file");
       if (next) setCompare(next);
+      track("download_clicked", {
+        file_ext: fileExt(data.original_filename || compare?.filename || "file"),
+        is_video: isVideoFilename(
+          data.original_filename || compare?.filename || "file",
+        ),
+      });
       await downloadFromR2(
         data.download_url,
         data.original_filename || compare?.filename || "file",
@@ -407,6 +468,9 @@ export function SilenceUploader() {
         err instanceof Error ? err.message : "Download failed. Try again.";
       setError(message);
       const existing = loadJobHistory().find((j) => j.jobId === id);
+      track("download_failed", {
+        file_ext: fileExt(compare?.filename || existing?.filename || "file"),
+      });
       if (existing) {
         setHistory(
           upsertJob({
@@ -461,6 +525,10 @@ export function SilenceUploader() {
           updatedAt: new Date().toISOString(),
         }),
       );
+      track("history_opened", {
+        file_ext: fileExt(next.filename),
+        is_video: next.isVideo,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn’t open this file.");
     }
@@ -474,6 +542,19 @@ export function SilenceUploader() {
   function pauseOther(which: "original" | "processed") {
     const other = which === "original" ? processedRef.current : originalRef.current;
     other?.pause();
+  }
+
+  function onPreviewPlay(which: "original" | "processed") {
+    pauseOther(which);
+    if (!compare) return;
+    const key = `${compare.jobId}:${which}`;
+    if (trackedPreviewRef.current.has(key)) return;
+    trackedPreviewRef.current.add(key);
+    track("preview_played", {
+      which,
+      file_ext: fileExt(compare.filename),
+      is_video: compare.isVideo,
+    });
   }
 
   const busy = ["creating", "uploading", "queued", "processing"].includes(status);
@@ -569,7 +650,7 @@ export function SilenceUploader() {
                       controls
                       playsInline
                       preload="metadata"
-                      onPlay={() => pauseOther("original")}
+                      onPlay={() => onPreviewPlay("original")}
                     />
                   ) : (
                     <audio
@@ -580,7 +661,7 @@ export function SilenceUploader() {
                       src={compare.originalUrl}
                       controls
                       preload="metadata"
-                      onPlay={() => pauseOther("original")}
+                      onPlay={() => onPreviewPlay("original")}
                     />
                   )
                 ) : (
@@ -599,7 +680,7 @@ export function SilenceUploader() {
                     controls
                     playsInline
                     preload="metadata"
-                    onPlay={() => pauseOther("processed")}
+                    onPlay={() => onPreviewPlay("processed")}
                   />
                 ) : (
                   <audio
@@ -610,7 +691,7 @@ export function SilenceUploader() {
                     src={compare.processedUrl}
                     controls
                     preload="metadata"
-                    onPlay={() => pauseOther("processed")}
+                    onPlay={() => onPreviewPlay("processed")}
                   />
                 )}
               </div>

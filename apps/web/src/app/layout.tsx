@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo_Black, Figtree } from "next/font/google";
 import { PwaRegister } from "@/components/PwaRegister";
+import { UmamiAnalytics } from "@/components/UmamiAnalytics";
 import "./globals.css";
 
 const display = Archivo_Black({
@@ -70,6 +71,7 @@ export default function RootLayout({
       <body className={`${display.variable} ${body.variable} antialiased`}>
         {children}
         <PwaRegister />
+        <UmamiAnalytics />
       </body>
     </html>
   );
