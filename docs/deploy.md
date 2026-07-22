@@ -38,7 +38,7 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 4. Do **not** add `docker-compose.local.yml` on Dokploy (it binds host `:3000`).
 5. Set `API_INTERNAL_URL=http://api:8080` (Compose DNS name).
 6. Set `NEXT_PUBLIC_SITE_URL` to the public HTTPS origin (needed for Open Graph + PWA).
-7. Set `NEXT_PUBLIC_UMAMI_URL` and `NEXT_PUBLIC_UMAMI_WEBSITE_ID` in Dokploy (production analytics).
+7. Set `NEXT_PUBLIC_UMAMI_URL` and `NEXT_PUBLIC_UMAMI_WEBSITE_ID` in Dokploy (no trailing spaces). Rebuild `web` after changes.
 8. Configure object storage (prefer R2 in production — see below).
 9. Confirm `S3_PUBLIC_ENDPOINT` is reachable from end-user browsers.
 10. Deploy and hit `/` then run a short audio job end-to-end.

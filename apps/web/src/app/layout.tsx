@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Archivo_Black, Figtree } from "next/font/google";
 import { PwaRegister } from "@/components/PwaRegister";
 import { UmamiReady } from "@/components/UmamiAnalytics";
+import { sanitizePublicOrigin, sanitizeWebsiteId } from "@/lib/umamiConfig";
 import "./globals.css";
 
 const display = Archivo_Black({
@@ -21,13 +22,15 @@ const siteUrl =
 
 /** Public tracker config — inlined at build; disable with NEXT_PUBLIC_UMAMI_DISABLED=1 */
 const umamiDisabled = process.env.NEXT_PUBLIC_UMAMI_DISABLED === "1";
-const umamiUrl =
-  process.env.NEXT_PUBLIC_UMAMI_URL?.replace(/\/$/, "").trim() ||
-  "https://umami.puhulab.com";
-const umamiWebsiteId =
-  process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID?.trim() ||
-  "c7dec9db-2640-478b-8a56-ae99633c31df";
-const umamiEnabled = !umamiDisabled && Boolean(umamiUrl && umamiWebsiteId);
+const umamiUrl = sanitizePublicOrigin(
+  process.env.NEXT_PUBLIC_UMAMI_URL,
+  "https://umami.puhulab.com",
+);
+const umamiWebsiteId = sanitizeWebsiteId(
+  process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID,
+  "c7dec9db-2640-478b-8a56-ae99633c31df",
+);
+const umamiEnabled = !umamiDisabled;
 
 const title = "Silence Remover by Puhulab";
 const description =
