@@ -8,13 +8,15 @@ HTTPS and domain routing are handled by Dokploy — there is no Caddy service in
 
 | Service | Public? | Notes |
 |---------|---------|--------|
-| `web` | **Yes** | Attach Dokploy domain + TLS here only |
+| `web` | **Yes** | Next.js 16.4.3 on Bun 1.4.4 (`oven/bun:1.4.4-slim`). Attach Dokploy domain + TLS here only |
 | `api` | No | Reachable as `http://api:8080` from `web` |
 | `worker` | No | One replica; CPU-bound ffmpeg encode |
 | `postgres` | No | Volume `postgres_data` |
 | `redis` | No | Queue + rate limit |
 | `minio` | Optional | Profile `minio` only; port `9000` for browser presign |
 | `minio-init` | Optional | Profile `minio` only; creates bucket once |
+
+The `web` image does not include Node.js. Install uses `bun install --frozen-lockfile` (`apps/web/bun.lock`). Production starts the Next.js standalone server with `bun server.js`.
 
 ## Quick start (local)
 

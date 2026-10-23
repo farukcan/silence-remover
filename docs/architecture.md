@@ -28,7 +28,7 @@ silence-remover/
 
 | Layer | Language | Responsibility |
 |-------|----------|----------------|
-| Web | TypeScript / Next.js | Upload UX; proxies job calls to Go; never holds business rules |
+| Web | TypeScript / Next.js 16.4.3 on Bun 1.4.4 | Upload UX; proxies job calls to Go; never holds business rules |
 | API | Go | Create job, rate limit, presign, enqueue, status |
 | Worker | Python | Download input, run `silence_core`, upload output, update status |
 | Core | Python | VAD + ffmpeg jump-cut (also used by local CLI) |
@@ -42,7 +42,7 @@ flowchart TB
     Dokploy[Dokploy_HTTPS]
   end
   subgraph compose [Docker_Compose]
-    Web[Nextjs_web]
+    Web[Nextjs_on_Bun]
     API[Go_api_internal]
     Worker[Python_worker]
     PG[(Postgres)]
