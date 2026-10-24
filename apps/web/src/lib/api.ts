@@ -1,3 +1,5 @@
+import { clearOutboundProxyEnv } from "./clear-outbound-proxy";
+
 const API_BASE = process.env.API_INTERNAL_URL ?? "http://api.:8080";
 
 // A single-label name such as "api" is looked up with resolv.conf search domains
@@ -11,11 +13,12 @@ function absoluteServiceUrl(path: string): string {
   return url.toString().replace(`//${host}`, `//${host}.`);
 }
 
-// Bun's fetch follows HTTP_PROXY / HTTPS_PROXY / ALL_PROXY. Node's fetch does not.
-// The Go API is on the Docker network, so these calls must connect directly.
+// proxy: false is a second guard for this call. clearOutboundProxyEnv covers every
+// other Bun fetch in the process (the option is not part of the Fetch spec).
 type DirectFetchInit = RequestInit & { proxy: false };
 
 export function internalApiFetch(path: string, init?: RequestInit): Promise<Response> {
+  clearOutboundProxyEnv();
   return fetch(absoluteServiceUrl(path), {
     ...init,
     cache: "no-store",

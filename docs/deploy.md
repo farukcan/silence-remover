@@ -184,7 +184,7 @@ Optional belt-and-suspenders: in Cloudflare R2 → bucket → **Settings** → *
 | Job stuck `pending_upload` | Complete-upload never called / HeadObject failed |
 | Job stuck `queued` | Worker not running or Redis key mismatch (`QUEUE_KEY`) |
 | Always rate limited | Spoofed/shared IP; raise limits or check `X-Real-IP` from Dokploy |
-| `ECONNREFUSED` on `/api/jobs` | `api` resolved via the `puhulab.com` search domain to Cloudflare (`api.puhulab.com`), which refuses port 8080. Use `http://api.:8080`. Bun also follows `HTTP_PROXY`; internal fetches set `proxy: false` and Compose sets `NO_PROXY`. If it still fails, the `api` container is down. |
+| `ECONNREFUSED` on `/api/jobs` | Bun follows `HTTP_PROXY`. A closed proxy port refuses every URL, including `http://api.:8080`. Compose clears those variables, and the web process deletes them at startup. Confirm with `fetch('http://api.:8080/healthz', { proxy: false })` inside the web container: `{"status":"ok"}` means the API is up. `ECONNREFUSED` from that call means the `api` container is down or not listening on 8080. |
 
 ## Related
 
