@@ -1,33 +1,10 @@
-import { clearOutboundProxyEnv } from "./clear-outbound-proxy";
-
-const API_BASE = process.env.API_INTERNAL_URL ?? "http://silence-api.:8080";
-
-// A single-label name is looked up with resolv.conf search domains when ndots
-// is high. A trailing dot keeps the Docker service name. The service is
-// silence-api, not api: on a shared Docker network "api" can be a different
-// container that refuses port 8080.
-function absoluteServiceUrl(path: string): string {
-  const url = new URL(path, API_BASE);
-  if (url.hostname === "api" || url.hostname === "api.") {
-    url.hostname = "silence-api.";
-  }
-  const host = url.hostname;
-  const isIp = host.includes(":") || /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
-  if (isIp || host.includes(".")) return url.toString();
-  return url.toString().replace(`//${host}`, `//${host}.`);
-}
-
-// proxy: false is a second guard for this call. clearOutboundProxyEnv covers every
-// other Bun fetch in the process (the option is not part of the Fetch spec).
-type DirectFetchInit = RequestInit & { proxy: false };
+const API_BASE = process.env.API_INTERNAL_URL ?? "http://silence-api:8080";
 
 export function internalApiFetch(path: string, init?: RequestInit): Promise<Response> {
-  clearOutboundProxyEnv();
-  return fetch(absoluteServiceUrl(path), {
+  return fetch(`${API_BASE}${path}`, {
     ...init,
     cache: "no-store",
-    proxy: false,
-  } as DirectFetchInit);
+  });
 }
 
 export type CreateJobResponse = {

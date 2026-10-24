@@ -1,7 +1,4 @@
-import { clearOutboundProxyEnv } from "@/lib/clear-outbound-proxy";
 import * as Sentry from "@sentry/nextjs";
-
-clearOutboundProxyEnv();
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
