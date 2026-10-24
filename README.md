@@ -132,7 +132,7 @@ Important env vars:
 | `RATE_LIMIT_JOBS_PER_DAY` | Default `10` (per IP, UTC day) |
 | `RATE_LIMIT_MAX_CONCURRENT` | Default `2` |
 | `MAX_UPLOAD_BYTES` | Default `209715200` (200 MB) |
-| `API_INTERNAL_URL` | Web → API (`http://api.:8080`) |
+| `API_INTERNAL_URL` | Web → API (`http://silence-api.:8080`) |
 | `NEXT_PUBLIC_SITE_URL` | Public HTTPS origin (Open Graph + PWA) |
 | `NEXT_PUBLIC_UMAMI_URL` | Umami origin (build-time; omit locally to disable) |
 | `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Umami website ID (build-time; both Umami vars required) |

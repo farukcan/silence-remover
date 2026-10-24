@@ -9,7 +9,7 @@ HTTPS and domain routing are handled by Dokploy — there is no Caddy service in
 | Service | Public? | Notes |
 |---------|---------|--------|
 | `web` | **Yes** | Next.js 16.4.3 on Bun 1.4.4 (`oven/bun:1.4.4-slim`). Attach Dokploy domain + TLS here only |
-| `api` | No | Reachable as `http://api.:8080` from `web` |
+| `silence-api` | No | Go API in `apps/api`. Reachable as `http://silence-api.:8080` from `web`. The short name `api` is not used: on Dokploy's shared network it can be another container |
 | `worker` | No | One replica; CPU-bound ffmpeg encode |
 | `postgres` | No | Volume `postgres_data` |
 | `redis` | No | Queue + rate limit |
@@ -38,7 +38,7 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 2. Copy env from [`.env.example`](../.env.example); set strong `POSTGRES_PASSWORD` and real S3 credentials.
 3. Domain → **`web` service only** (container port **3000**). Do not expose `api`.
 4. Do **not** add `docker-compose.local.yml` on Dokploy (it binds host `:3000`).
-5. Set `API_INTERNAL_URL=http://api.:8080` (Compose DNS name; the trailing dot avoids the `api.puhulab.com` search-domain match).
+5. Set `API_INTERNAL_URL=http://silence-api.:8080` (Compose service name; the trailing dot avoids search-domain matches). If the Dokploy environment tab still has `http://api.:8080`, change or remove it.
 6. Set `NEXT_PUBLIC_SITE_URL` to the public HTTPS origin (needed for Open Graph + PWA).
 7. Set `NEXT_PUBLIC_UMAMI_URL` and `NEXT_PUBLIC_UMAMI_WEBSITE_ID` in Dokploy (no trailing spaces). Rebuild `web` after changes.
 8. Set `SENTRY_DSN` **and** `NEXT_PUBLIC_SENTRY_DSN` (same Bugsink DSN) in Dokploy. The browser SDK only sees `NEXT_PUBLIC_*` values baked in at **build** time — rebuild `web` after setting them. Smoke test: `/?bugsink_test=1`. Do not test with `throw` in DevTools console (sandboxed; Sentry ignores it). Omit DSN or set `SENTRY_DISABLED=1` / `NEXT_PUBLIC_SENTRY_DISABLED=1` to disable.
@@ -62,7 +62,7 @@ PWA / home screen: after deploy, open the site in mobile Safari or Chrome → Sh
 | `RATE_LIMIT_JOBS_PER_DAY` | No | Default `10` |
 | `RATE_LIMIT_MAX_CONCURRENT` | No | Default `2` |
 | `MAX_UPLOAD_BYTES` | No | Default `209715200` |
-| `API_INTERNAL_URL` | Web | Default `http://api.:8080` |
+| `API_INTERNAL_URL` | Web | Default `http://silence-api.:8080` |
 | `NEXT_PUBLIC_SITE_URL` | Web | Absolute site origin for Open Graph / WhatsApp / PWA |
 | `NEXT_PUBLIC_UMAMI_URL` | Web (prod) | Umami origin, e.g. `https://umami.puhulab.com` (defaults in code if unset) |
 | `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Web (prod) | Umami website ID (defaults in code if unset) |
@@ -184,7 +184,7 @@ Optional belt-and-suspenders: in Cloudflare R2 → bucket → **Settings** → *
 | Job stuck `pending_upload` | Complete-upload never called / HeadObject failed |
 | Job stuck `queued` | Worker not running or Redis key mismatch (`QUEUE_KEY`) |
 | Always rate limited | Spoofed/shared IP; raise limits or check `X-Real-IP` from Dokploy |
-| `ECONNREFUSED` on `/api/jobs` | Bun follows `HTTP_PROXY`. A closed proxy port refuses every URL, including `http://api.:8080`. Compose clears those variables, and the web process deletes them at startup. Confirm with `fetch('http://api.:8080/healthz', { proxy: false })` inside the web container: `{"status":"ok"}` means the API is up. `ECONNREFUSED` from that call means the `api` container is down or not listening on 8080. |
+| `ECONNREFUSED` on `/api/jobs` | Web is calling the Docker name `api`, which on Dokploy's shared network is often a different container that does not listen on 8080. Use the Compose service `silence-api` (`http://silence-api.:8080`). Restarting containers does not apply a compose change — redeploy the stack so the service is recreated. A closed `HTTP_PROXY` causes the same error for a plain `fetch`; the web process clears those variables. |
 
 ## Related
 

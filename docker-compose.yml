@@ -59,7 +59,9 @@ services:
       S3_BUCKET: ${S3_BUCKET:-silence-remover}
     restart: "no"
 
-  api:
+  # Not "api": on Dokploy's shared network that name can belong to another
+  # container, which refuses port 8080 (ECONNREFUSED from web).
+  silence-api:
     build:
       context: ./apps/api
       dockerfile: Dockerfile
@@ -120,7 +122,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      api:
+      silence-api:
         condition: service_started
     # Debug HTTP only on Docker network (no host publish).
     expose:
@@ -138,7 +140,7 @@ services:
         NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-${SENTRY_DSN:-}}
         NEXT_PUBLIC_SENTRY_DISABLED: ${NEXT_PUBLIC_SENTRY_DISABLED:-}
     environment:
-      API_INTERNAL_URL: http://api.:8080
+      API_INTERNAL_URL: http://silence-api.:8080
       # Bun fetch follows these. A closed proxy port refuses the internal API.
       # The server also deletes them at startup (apps/web/src/lib/clear-outbound-proxy.ts).
       HTTP_PROXY: ""
@@ -158,7 +160,7 @@ services:
       SENTRY_DISABLED: ${SENTRY_DISABLED:-}
       NEXT_PUBLIC_SENTRY_DISABLED: ${NEXT_PUBLIC_SENTRY_DISABLED:-}
     depends_on:
-      - api
+      - silence-api
     # No host port bind — Dokploy proxies to container port 3000.
     # Local: also use docker-compose.local.yml (see docs/deploy.md).
     expose:

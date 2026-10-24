@@ -1,12 +1,16 @@
 import { clearOutboundProxyEnv } from "./clear-outbound-proxy";
 
-const API_BASE = process.env.API_INTERNAL_URL ?? "http://api.:8080";
+const API_BASE = process.env.API_INTERNAL_URL ?? "http://silence-api.:8080";
 
-// A single-label name such as "api" is looked up with resolv.conf search domains
-// when ndots is high. On this host that turns it into api.puhulab.com (Cloudflare),
-// and port 8080 is then refused. A trailing dot keeps the Docker service name.
+// A single-label name is looked up with resolv.conf search domains when ndots
+// is high. A trailing dot keeps the Docker service name. The service is
+// silence-api, not api: on a shared Docker network "api" can be a different
+// container that refuses port 8080.
 function absoluteServiceUrl(path: string): string {
   const url = new URL(path, API_BASE);
+  if (url.hostname === "api" || url.hostname === "api.") {
+    url.hostname = "silence-api.";
+  }
   const host = url.hostname;
   const isIp = host.includes(":") || /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
   if (isIp || host.includes(".")) return url.toString();

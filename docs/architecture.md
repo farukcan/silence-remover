@@ -106,7 +106,7 @@ sequenceDiagram
 
 - **Job token:** opaque UUID returned at create time; required as `X-Job-Token` for complete/status. No user accounts in MVP.
 - **Rate limit:** Redis daily counter + Postgres concurrent active jobs, keyed by client IP (prefer `X-Real-IP` from the edge proxy).
-- **Web → API:** server-side only (`API_INTERNAL_URL`). Do not publish the `api` service in Dokploy.
+- **Web → API:** server-side only (`API_INTERNAL_URL`, Compose service `silence-api`). Do not publish that service in Dokploy.
 - **Presigned URLs:** signed against `S3_PUBLIC_ENDPOINT` so browsers can PUT/GET; server-side Head/Get uses `S3_ENDPOINT`. Download GETs force `Content-Disposition: attachment` + `application/octet-stream`. Preview GETs use `inline` + media Content-Type for in-page Before/After players. Browser upload and download talk to object storage directly (presigned); the web app does not proxy file bytes. Presigned URL TTLs default to 1 hour (`UPLOAD_URL_TTL_SEC` / `DOWNLOAD_URL_TTL_SEC`).
 - **Object retention:** the worker deletes input/output objects older than `OBJECT_RETENTION_HOURS` (default 24).
 - **Worker Redis poll:** `BRPOP` with `BRPOP_TIMEOUT` (default 5s). Client `socket_timeout` is set above that timeout; `TimeoutError` / connection errors are treated as idle reconnect so an empty queue does not crash the process.
