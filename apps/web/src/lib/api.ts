@@ -1,11 +1,22 @@
-const API_BASE = process.env.API_INTERNAL_URL ?? "http://api:8080";
+const API_BASE = process.env.API_INTERNAL_URL ?? "http://api.:8080";
+
+// A single-label name such as "api" is looked up with resolv.conf search domains
+// when ndots is high. On this host that turns it into api.puhulab.com (Cloudflare),
+// and port 8080 is then refused. A trailing dot keeps the Docker service name.
+function absoluteServiceUrl(path: string): string {
+  const url = new URL(path, API_BASE);
+  const host = url.hostname;
+  const isIp = host.includes(":") || /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
+  if (isIp || host.includes(".")) return url.toString();
+  return url.toString().replace(`//${host}`, `//${host}.`);
+}
 
 // Bun's fetch follows HTTP_PROXY / HTTPS_PROXY / ALL_PROXY. Node's fetch does not.
 // The Go API is on the Docker network, so these calls must connect directly.
 type DirectFetchInit = RequestInit & { proxy: false };
 
 export function internalApiFetch(path: string, init?: RequestInit): Promise<Response> {
-  return fetch(`${API_BASE}${path}`, {
+  return fetch(absoluteServiceUrl(path), {
     ...init,
     cache: "no-store",
     proxy: false,

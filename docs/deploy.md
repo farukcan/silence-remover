@@ -9,7 +9,7 @@ HTTPS and domain routing are handled by Dokploy — there is no Caddy service in
 | Service | Public? | Notes |
 |---------|---------|--------|
 | `web` | **Yes** | Next.js 16.4.3 on Bun 1.4.4 (`oven/bun:1.4.4-slim`). Attach Dokploy domain + TLS here only |
-| `api` | No | Reachable as `http://api:8080` from `web` |
+| `api` | No | Reachable as `http://api.:8080` from `web` |
 | `worker` | No | One replica; CPU-bound ffmpeg encode |
 | `postgres` | No | Volume `postgres_data` |
 | `redis` | No | Queue + rate limit |
@@ -38,7 +38,7 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 2. Copy env from [`.env.example`](../.env.example); set strong `POSTGRES_PASSWORD` and real S3 credentials.
 3. Domain → **`web` service only** (container port **3000**). Do not expose `api`.
 4. Do **not** add `docker-compose.local.yml` on Dokploy (it binds host `:3000`).
-5. Set `API_INTERNAL_URL=http://api:8080` (Compose DNS name).
+5. Set `API_INTERNAL_URL=http://api.:8080` (Compose DNS name; the trailing dot avoids the `api.puhulab.com` search-domain match).
 6. Set `NEXT_PUBLIC_SITE_URL` to the public HTTPS origin (needed for Open Graph + PWA).
 7. Set `NEXT_PUBLIC_UMAMI_URL` and `NEXT_PUBLIC_UMAMI_WEBSITE_ID` in Dokploy (no trailing spaces). Rebuild `web` after changes.
 8. Set `SENTRY_DSN` **and** `NEXT_PUBLIC_SENTRY_DSN` (same Bugsink DSN) in Dokploy. The browser SDK only sees `NEXT_PUBLIC_*` values baked in at **build** time — rebuild `web` after setting them. Smoke test: `/?bugsink_test=1`. Do not test with `throw` in DevTools console (sandboxed; Sentry ignores it). Omit DSN or set `SENTRY_DISABLED=1` / `NEXT_PUBLIC_SENTRY_DISABLED=1` to disable.
@@ -62,7 +62,7 @@ PWA / home screen: after deploy, open the site in mobile Safari or Chrome → Sh
 | `RATE_LIMIT_JOBS_PER_DAY` | No | Default `10` |
 | `RATE_LIMIT_MAX_CONCURRENT` | No | Default `2` |
 | `MAX_UPLOAD_BYTES` | No | Default `209715200` |
-| `API_INTERNAL_URL` | Web | Default `http://api:8080` |
+| `API_INTERNAL_URL` | Web | Default `http://api.:8080` |
 | `NEXT_PUBLIC_SITE_URL` | Web | Absolute site origin for Open Graph / WhatsApp / PWA |
 | `NEXT_PUBLIC_UMAMI_URL` | Web (prod) | Umami origin, e.g. `https://umami.puhulab.com` (defaults in code if unset) |
 | `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Web (prod) | Umami website ID (defaults in code if unset) |
@@ -184,7 +184,7 @@ Optional belt-and-suspenders: in Cloudflare R2 → bucket → **Settings** → *
 | Job stuck `pending_upload` | Complete-upload never called / HeadObject failed |
 | Job stuck `queued` | Worker not running or Redis key mismatch (`QUEUE_KEY`) |
 | Always rate limited | Spoofed/shared IP; raise limits or check `X-Real-IP` from Dokploy |
-| `api` 502 from web, or `ECONNREFUSED` on `/api/jobs` | `api` container down, wrong `API_INTERNAL_URL`, or Bun sending the internal call through `HTTP_PROXY`. Compose sets `NO_PROXY=api`; server fetches also pass `proxy: false`. |
+| `ECONNREFUSED` on `/api/jobs` | `api` resolved via the `puhulab.com` search domain to Cloudflare (`api.puhulab.com`), which refuses port 8080. Use `http://api.:8080`. Bun also follows `HTTP_PROXY`; internal fetches set `proxy: false` and Compose sets `NO_PROXY`. If it still fails, the `api` container is down. |
 
 ## Related
 

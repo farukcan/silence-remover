@@ -1,6 +1,6 @@
 # Internal API
 
-Go service in [`apps/api`](../apps/api/). Base URL inside Compose: `http://api:8080`.
+Go service in [`apps/api`](../apps/api/). Base URL inside Compose: `http://api.:8080`.
 
 MVP: **not publicly routed**. Next.js BFF under `/api/jobs*` calls this API with `API_INTERNAL_URL`.
 
