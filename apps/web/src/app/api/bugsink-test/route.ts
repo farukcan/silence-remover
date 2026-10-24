@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
+import { internalApiFetch } from "@/lib/api";
 
 export const runtime = "nodejs";
-
-const API_BASE = process.env.API_INTERNAL_URL ?? "http://api:8080";
 
 /**
  * Proxies the chained Bugsink smoke test: worker → api errors.
@@ -15,9 +14,8 @@ export async function GET(request: Request) {
   }
 
   try {
-    const res = await fetch(
-      `${API_BASE}/v1/__bugsink_test?token=${encodeURIComponent(token)}`,
-      { cache: "no-store" },
+    const res = await internalApiFetch(
+      `/v1/__bugsink_test?token=${encodeURIComponent(token)}`,
     );
     const body = await res.text();
     return new NextResponse(body, {

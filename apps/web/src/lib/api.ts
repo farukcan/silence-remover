@@ -1,5 +1,17 @@
 const API_BASE = process.env.API_INTERNAL_URL ?? "http://api:8080";
 
+// Bun's fetch follows HTTP_PROXY / HTTPS_PROXY / ALL_PROXY. Node's fetch does not.
+// The Go API is on the Docker network, so these calls must connect directly.
+type DirectFetchInit = RequestInit & { proxy: false };
+
+export function internalApiFetch(path: string, init?: RequestInit): Promise<Response> {
+  return fetch(`${API_BASE}${path}`, {
+    ...init,
+    cache: "no-store",
+    proxy: false,
+  } as DirectFetchInit);
+}
+
 export type CreateJobResponse = {
   job_id: string;
   token: string;
@@ -45,14 +57,13 @@ export async function createJob(
   contentType: string,
   clientIp?: string,
 ) {
-  const res = await fetch(`${API_BASE}/v1/jobs`, {
+  const res = await internalApiFetch("/v1/jobs", {
     method: "POST",
     headers: forwardHeaders(
       { "Content-Type": "application/json" },
       clientIp,
     ),
     body: JSON.stringify({ filename, content_type: contentType }),
-    cache: "no-store",
   });
   if (!res.ok) {
     throw new Error(await parseError(res));
@@ -65,10 +76,9 @@ export async function completeUpload(
   token: string,
   clientIp?: string,
 ) {
-  const res = await fetch(`${API_BASE}/v1/jobs/${jobId}/complete-upload`, {
+  const res = await internalApiFetch(`/v1/jobs/${jobId}/complete-upload`, {
     method: "POST",
     headers: forwardHeaders({ "X-Job-Token": token }, clientIp),
-    cache: "no-store",
   });
   if (!res.ok) {
     throw new Error(await parseError(res));
@@ -77,9 +87,8 @@ export async function completeUpload(
 }
 
 export async function getJob(jobId: string, token: string, clientIp?: string) {
-  const res = await fetch(`${API_BASE}/v1/jobs/${jobId}`, {
+  const res = await internalApiFetch(`/v1/jobs/${jobId}`, {
     headers: forwardHeaders({ "X-Job-Token": token }, clientIp),
-    cache: "no-store",
   });
   if (!res.ok) {
     throw new Error(await parseError(res));

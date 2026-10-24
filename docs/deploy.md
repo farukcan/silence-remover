@@ -184,7 +184,7 @@ Optional belt-and-suspenders: in Cloudflare R2 → bucket → **Settings** → *
 | Job stuck `pending_upload` | Complete-upload never called / HeadObject failed |
 | Job stuck `queued` | Worker not running or Redis key mismatch (`QUEUE_KEY`) |
 | Always rate limited | Spoofed/shared IP; raise limits or check `X-Real-IP` from Dokploy |
-| `api` 502 from web | Wrong `API_INTERNAL_URL` or `api` container unhealthy |
+| `api` 502 from web, or `ECONNREFUSED` on `/api/jobs` | `api` container down, wrong `API_INTERNAL_URL`, or Bun sending the internal call through `HTTP_PROXY`. Compose sets `NO_PROXY=api`; server fetches also pass `proxy: false`. |
 
 ## Related
 
